@@ -1,0 +1,56 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+}
+
+.method {
+  width: 120px;
+  flex: 0 0 auto;
+}
+
+.url {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.bar button {
+  flex: 0 0 auto;
+  height: 40px;
+  margin-top: 2px;
+}
+
+.tabs {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.progress {
+  margin: 4px 12px;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+}
+
+// Let the active tab's content fill the remaining height of the panel.
+.tabs {
+  display: flex;
+  flex-direction: column;
+}
+
+:host ::ng-deep .mat-mdc-tab-body-wrapper {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+:host ::ng-deep .mat-mdc-tab-body-content {
+  height: 100%;
+  overflow: auto;
+}

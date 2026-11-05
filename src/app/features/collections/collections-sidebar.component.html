@@ -1,0 +1,87 @@
+<nav aria-label="Collections">
+  <div class="head">
+    <h2>Collections</h2>
+    <button mat-stroked-button type="button" (click)="newCollection()">New</button>
+  </div>
+
+  @if (store.error(); as message) {
+    <div class="error" role="alert">
+      <span>{{ message }}</span>
+      <button type="button" (click)="store.clearError()">Dismiss</button>
+    </div>
+  }
+
+  @if (!store.loaded()) {
+    <p class="hint" role="status">Loading…</p>
+  } @else if (store.tree().length === 0) {
+    <p class="hint">No collections yet. Create one to organize your requests into folders.</p>
+  } @else {
+    <ul class="collections">
+      @for (node of store.tree(); track node.collection.id) {
+        <li>
+          <ng-container
+            *ngTemplateOutlet="row; context: { kind: 'collection', id: node.collection.id, name: node.collection.name, collectionId: node.collection.id, open: expanded().has(node.collection.id) }"
+          />
+          @if (expanded().has(node.collection.id)) {
+            @if (node.folders.length > 0) {
+              <ng-container *ngTemplateOutlet="folderList; context: { $implicit: node.folders, collectionId: node.collection.id }" />
+            } @else {
+              <p class="hint nested">No folders yet.</p>
+            }
+          }
+        </li>
+      }
+    </ul>
+  }
+</nav>
+
+<ng-template #folderList let-nodes let-collectionId="collectionId">
+  <ul class="folders">
+    @for (node of nodes; track node.folder.id) {
+      <li>
+        <ng-container
+          *ngTemplateOutlet="row; context: { kind: 'folder', id: node.folder.id, name: node.folder.name, collectionId: collectionId, open: expanded().has(node.folder.id) }"
+        />
+        @if (expanded().has(node.folder.id)) {
+          @if (node.children.length > 0) {
+            <ng-container *ngTemplateOutlet="folderList; context: { $implicit: node.children, collectionId: collectionId }" />
+          } @else {
+            <p class="hint nested">Empty.</p>
+          }
+        }
+      </li>
+    }
+  </ul>
+</ng-template>
+
+<ng-template #row let-kind="kind" let-id="id" let-name="name" let-collectionId="collectionId" let-open="open">
+  <div class="row" [class.collection]="kind === 'collection'">
+    <button
+      type="button"
+      class="toggle"
+      [attr.aria-expanded]="open"
+      [attr.aria-label]="(kind === 'collection' ? 'Collection ' : 'Folder ') + name"
+      (click)="toggle(id)"
+    >
+      <span class="chevron" aria-hidden="true">{{ open ? '▾' : '▸' }}</span>
+      <span class="name" [title]="name">{{ name }}</span>
+    </button>
+    <button
+      type="button"
+      class="more"
+      [matMenuTriggerFor]="menu"
+      [matMenuTriggerData]="{ kind: kind, id: id, name: name, collectionId: collectionId }"
+      [attr.aria-label]="'Actions for ' + name"
+    >
+      ⋯
+    </button>
+  </div>
+</ng-template>
+
+<mat-menu #menu="matMenu">
+  <ng-template matMenuContent let-kind="kind" let-id="id" let-name="name" let-collectionId="collectionId">
+    <button mat-menu-item type="button" (click)="newFolder(collectionId, kind === 'folder' ? id : null)">New folder</button>
+    <button mat-menu-item type="button" (click)="rename(kind, id, name)">Rename</button>
+    <button mat-menu-item type="button" (click)="remove(kind, id, name)">Delete</button>
+  </ng-template>
+</mat-menu>

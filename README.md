@@ -1,0 +1,407 @@
+# API Studio
+
+A browser-based API development, testing, and debugging tool inspired by
+Postman.
+
+API Studio allows developers to create, execute, organize, save, and inspect
+HTTP requests directly from their browser without requiring a backend server.
+
+The application is designed as a frontend-only solution using Angular and
+modern browser APIs.
+
+## 1. Project Goals
+
+The primary goal is to provide a lightweight, modern, and user-friendly
+alternative to Postman for everyday API development and testing.
+
+Core capabilities:
+
+- Execute HTTP requests.
+- Support REST APIs.
+- Support different HTTP methods.
+- Configure request headers and query parameters.
+- Create JSON, XML, and text request bodies.
+- Submit form-urlencoded requests.
+- Submit multipart/form-data requests.
+- Upload files.
+- Inspect HTTP responses.
+- Save and organize requests.
+- Create collections and folders.
+- Manage environments and variables.
+- Maintain request execution history.
+- Import and export collections.
+
+The application must work without a dedicated backend.
+
+All user data is stored locally in the browser.
+
+> **Status:** Early development. The Angular project is scaffolded (Step 0);
+> the application features are not implemented yet. See the Development Steps
+> checklist for progress.
+
+## 2. Technology Stack
+
+### Frontend
+
+- Angular
+- TypeScript
+- Angular Material
+- SCSS
+- Angular Signals
+- RxJS
+
+### Editors
+
+- Monaco Editor
+
+Used for:
+
+- JSON editing.
+- XML editing.
+- Plain text editing.
+- JavaScript editing.
+- Syntax highlighting.
+- Formatting.
+
+### HTTP Execution
+
+- Native Fetch API.
+- XMLHttpRequest where upload progress reporting is needed.
+- FormData for multipart requests.
+- AbortController for request cancellation.
+
+### Local Storage
+
+- IndexedDB.
+- Dexie.js as the IndexedDB wrapper.
+
+### Development
+
+- Angular CLI.
+- Node.js.
+- npm.
+- Git.
+
+## 3. Architecture
+
+The application follows a modular Angular architecture.
+
+```text
+api-studio/
+|
++-- src/
+|   |
+|   +-- app/
+|       |
+|       +-- core/
+|       |   +-- models/
+|       |   +-- services/
+|       |   +-- database/
+|       |
+|       +-- features/
+|       |   +-- workspace/
+|       |   +-- collections/
+|       |   +-- request-editor/
+|       |   +-- response-viewer/
+|       |   +-- environments/
+|       |   +-- history/
+|       |   +-- settings/
+|       |
+|       +-- shared/
+|           +-- components/
+|           +-- directives/
+|           +-- pipes/
+|
++-- public/
+|
++-- package.json
+|
++-- angular.json
+|
++-- README.md
++-- AGENTS.md
++-- PRD.md
++-- SKILLS.md
+```
+
+## 4. Main Application Components
+
+### Workspace
+
+Main application interface.
+
+Responsibilities:
+
+- Application navigation.
+- Request tabs.
+- Collections sidebar.
+- Environment selector.
+- Workspace layout.
+
+### Request Editor
+
+Responsible for configuring HTTP requests.
+
+Supported configuration:
+
+- HTTP method.
+- URL.
+- Query parameters.
+- Headers.
+- Authorization.
+- Request body.
+- File uploads.
+
+### Response Viewer
+
+Displays HTTP responses.
+
+Supported information:
+
+- Status code.
+- Status text.
+- Response duration.
+- Response size.
+- Response headers.
+- Cookies where accessible.
+- Response body.
+
+### Collections
+
+Organizes saved API requests.
+
+Features:
+
+- Create collections.
+- Create folders.
+- Rename collections.
+- Delete collections.
+- Save requests.
+- Duplicate requests.
+- Move requests between folders.
+
+### Environments
+
+Supports multiple environments.
+
+Example:
+
+```json
+{
+  "name": "Development",
+  "variables": {
+    "baseUrl": "http://localhost:8080",
+    "apiToken": "development-token"
+  }
+}
+```
+
+Requests can reference variables:
+
+```text
+{{baseUrl}}/api/users
+```
+
+### Local Database
+
+All persistent application data is stored in IndexedDB.
+
+No remote database is required.
+
+## 5. HTTP Support
+
+Supported methods and request body types are defined in
+[PRD.md](PRD.md) (FR-001 and FR-005).
+
+### Known Limitations
+
+Browser-based execution imposes limits that the application cannot bypass and
+must communicate clearly:
+
+- CORS restrictions apply. A CORS failure appears to JavaScript as a generic
+  network error, so the application can only report it as "possibly CORS".
+- Some HTTP headers (for example `Host`, `Cookie`, `Origin`) cannot be
+  controlled by JavaScript.
+- `Set-Cookie` response headers are not readable, and cross-origin responses
+  expose only a subset of headers unless the server allows more.
+- HTTPS applications cannot freely access insecure HTTP endpoints (mixed
+  content).
+- Invalid TLS certificates cannot be bypassed.
+- Browser execution cannot access arbitrary TCP sockets.
+- Data stored in IndexedDB is unencrypted and may be evicted by the browser.
+  Export backups regularly.
+
+Supported browsers: the latest two stable versions of Chrome, Edge, Firefox,
+and Safari.
+
+## 6. Installation
+
+Requirements:
+
+- Node.js LTS.
+- npm.
+- Git.
+
+Clone the repository:
+
+```bash
+git clone <repository-url>
+cd api-studio
+```
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Start the development server:
+
+```bash
+npm start
+```
+
+Alternatively:
+
+```bash
+ng serve
+```
+
+Open:
+
+```text
+http://localhost:4200
+```
+
+## 7. Development Principles
+
+- Frontend-only architecture.
+- No mandatory backend dependencies.
+- Local-first data storage.
+- Modular Angular architecture.
+- Strong TypeScript typing.
+- Reusable components.
+- Separation of UI and business logic.
+- Responsive application layout.
+- Secure handling of sensitive local data.
+- Clear separation between request configuration and HTTP execution.
+
+## 8. Development Steps
+
+Progress tracker derived from the milestones in [PRD.md](PRD.md). Check items
+off only when the feature works and its tests pass (see the Definition of Done
+in [SKILLS.md](SKILLS.md)).
+
+### Step 0: Project Setup
+
+- [x] Scaffold the Angular project (standalone components, strict TypeScript, SCSS).
+- [x] Record Angular, Node.js, TypeScript, and Angular Material versions in AGENTS.md.
+- [x] Add Angular Material with light and dark themes.
+- [x] Install Dexie.js and Monaco Editor.
+- [x] Load Monaco lazily (never in the initial bundle).
+- [x] Configure the unit test runner (Vitest via `ng test`).
+- [ ] Choose and configure the end-to-end tool (Playwright candidate).
+- [x] Configure lint, including module boundary rules (core / shared / features).
+- [x] Define npm scripts: `start`, `build`, `test`, `lint`.
+- [ ] Define the `e2e` npm script (after the e2e tool is chosen).
+- [ ] Create the core / shared / features folder structure (created as each
+  feature is built, to avoid placeholder files; only `core/models` exists).
+- [x] Define the core data models (request, response, collection, environment, history, settings).
+- [ ] Plan the Content Security Policy, including Monaco workers.
+
+### Milestone 1: Core HTTP Client
+
+- [x] Application layout (header, sidebar, editor, response panel, resizable panels). The sidebar is empty until collections arrive in Milestone 3.
+- [x] `RequestExecutionService` interface and `BrowserFetchExecutor`.
+- [x] HTTP method selection and URL editor.
+- [x] Query parameters synchronized with the URL.
+- [x] Headers editor. Forbidden or invalid headers are reported after sending.
+- [x] Basic JSON body with Monaco.
+- [x] Environment variable resolution (`{{variableName}}`).
+- [x] Send, cancel, and timeout handling with distinct error types (timeout is fixed at the 30 s default; a UI option is still open).
+- [x] Response viewer (status, duration, size, headers, body).
+- [x] Unit tests for normalization, URL building, headers, variables, and parsing.
+
+### Milestone 2: Advanced Request Support
+
+- [x] XML, text, and JavaScript bodies.
+- [x] URL-encoded forms.
+- [x] Multipart forms using native `FormData`.
+- [x] File uploads (multiple files, repeated field names).
+- [x] Binary request bodies.
+- [x] Upload progress via an XMLHttpRequest transport (used for file uploads).
+- [x] Basic, Bearer Token, API Key, and custom header authorization.
+- [x] Unit tests for body generation and multipart construction.
+
+### Milestone 3: Local Persistence
+
+- [ ] Dedicated Dexie database service with schema versioning and migrations.
+  (Started: `DatabaseService` and schema version 1 with the collections and
+  folders tables exist. Remaining tables, an export/import-safe upgrade path and
+  migration tests come with the later steps.)
+- [x] Collections and folders (create, rename, delete, nested folders; persisted
+  in IndexedDB). Moving and reordering folders is not implemented yet.
+- [ ] Saved requests (save, duplicate, move).
+- [ ] Environments (create, rename, delete, switch).
+- [ ] Application settings and theme persistence.
+- [ ] Multiple request tabs with preserved unsaved changes.
+- [ ] Persistent storage request and storage failure handling.
+- [ ] IndexedDB persistence and migration tests.
+
+### Milestone 4: Advanced Response Handling
+
+- [ ] JSON tree and pretty views with syntax highlighting.
+- [ ] Sandboxed HTML preview.
+- [ ] Image preview and binary download.
+- [ ] Response size limits with user notification.
+- [ ] Request history with redaction of sensitive values.
+
+### Milestone 5: Import and Export
+
+- [ ] Native JSON export and import with schema validation.
+- [ ] Warnings before exporting sensitive environment data.
+- [ ] Postman collection import and export.
+- [ ] OpenAPI import.
+
+### Milestone 6: Advanced Features
+
+- [ ] OAuth 2.0 (Authorization Code with PKCE).
+- [ ] Request chaining.
+- [ ] Automated assertions.
+- [ ] GraphQL.
+- [ ] WebSockets.
+- [ ] Server-Sent Events.
+- [ ] Sandboxed scripting.
+
+### Release Readiness
+
+- [ ] Integration tests for the major workflows in the PRD acceptance criteria.
+- [ ] Accessibility review (keyboard navigation, WCAG 2.2 AA).
+- [ ] Cross-browser verification (Chrome, Edge, Firefox, Safari).
+- [ ] Console error check and production build verification.
+- [ ] Documentation updated.
+
+## 9. Future Possibilities
+
+Potential future features:
+
+- Postman collection compatibility.
+- OpenAPI/Swagger import.
+- GraphQL.
+- WebSocket testing.
+- Server-Sent Events.
+- Request scripting.
+- Automated assertions.
+- Request chaining.
+- API testing suites.
+- Optional backend execution service.
+
+These features must not compromise the initial frontend-only architecture.
+
+## 10. Documentation
+
+See:
+
+- [PRD.md](PRD.md) — Product Requirements Document.
+- [AGENTS.md](AGENTS.md) — Development instructions for AI coding agents.
+- [SKILLS.md](SKILLS.md) — Technical skills and implementation guidelines.

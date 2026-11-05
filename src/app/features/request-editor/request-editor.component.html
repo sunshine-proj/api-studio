@@ -1,0 +1,65 @@
+<form class="bar" (submit)="$event.preventDefault(); send()">
+  <mat-form-field class="method" appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Method</mat-label>
+    <mat-select [value]="draft().method" (valueChange)="session.setMethod($event)" aria-label="HTTP method">
+      @for (method of methods; track method) {
+        <mat-option [value]="method">{{ method }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field class="url" appearance="outline" subscriptSizing="dynamic">
+    <mat-label>URL</mat-label>
+    <input
+      matInput
+      type="text"
+      inputmode="url"
+      autocomplete="off"
+      spellcheck="false"
+      [placeholder]="urlPlaceholder"
+      [value]="draft().url"
+      (input)="session.setUrl($any($event.target).value)"
+    />
+  </mat-form-field>
+
+  @if (sending()) {
+    <button mat-stroked-button type="button" (click)="session.cancel()">Cancel</button>
+  } @else {
+    <button mat-flat-button type="submit">Send</button>
+  }
+</form>
+
+@if (sending()) {
+  @if (upload(); as progress) {
+    <mat-progress-bar mode="determinate" [value]="progress.percent" aria-label="Upload progress" />
+    <p class="progress" role="status">{{ progress.label }}</p>
+  } @else {
+    <mat-progress-bar mode="indeterminate" aria-label="Sending request" />
+  }
+}
+
+<mat-tab-group class="tabs" animationDuration="0ms" mat-stretch-tabs="false">
+  <mat-tab [label]="'Params' + (enabledParams() ? ' (' + enabledParams() + ')' : '')">
+    <app-key-value-editor
+      keyLabel="Parameter"
+      [items]="draft().params"
+      (itemsChange)="session.setParams($event)"
+    />
+  </mat-tab>
+
+  <mat-tab [label]="'Headers' + (enabledHeaders() ? ' (' + enabledHeaders() + ')' : '')">
+    <app-key-value-editor
+      keyLabel="Header"
+      [items]="draft().headers"
+      (itemsChange)="session.setHeaders($event)"
+    />
+  </mat-tab>
+
+  <mat-tab [label]="'Authorization' + (draft().auth.type !== 'none' ? ' •' : '')">
+    <app-auth-editor />
+  </mat-tab>
+
+  <mat-tab [label]="'Body' + (draft().body.type !== 'none' ? ' •' : '')">
+    <app-body-editor />
+  </mat-tab>
+</mat-tab-group>

@@ -1,0 +1,87 @@
+
+Step 0 (project setup) is mostly done, and the app builds. The app has no features yet, only an empty shell.
+
+Checks run
+
+Typecheck, npm run lint, npm run build and npm test -- --watch=false all pass.
+The initial bundle is 53 KB gzipped, well under the 500 KB target.
+I confirmed the lint rule fires: a core file importing from @features/* is rejected.
+What was added
+
+Project: Angular 22.2 with strict TypeScript 6, SCSS, Vitest, ESLint and OnPush components. Node 26 is supported by this Angular version.
+Libraries: Angular Material and CDK, Dexie 4, Monaco 0.57 and fake-indexeddb for tests.
+Aliases and lint: @core/*, @shared/* and @features/* aliases, with lint rules enforcing the core / shared / features dependency direction.
+Theme: a Material light and dark theme in styles.scss.
+Models: the core data models in src/app/core/models/, covering requests, responses, collections, environments, history and settings.
+Docs: the README checklist and the versions section in AGENTS.md §17 are updated.
+Still open in Step 0 (unchecked in the README)
+
+The end-to-end tool: I'd pick Playwright, but haven't installed it.
+Lazy-loading Monaco. It's installed but not wired in yet.
+The CSP plan for Monaco workers.
+The shared and features folders, which I'll create as features land rather than as empty placeholders.
+Things to know
+
+I briefly ran git init by mistake and removed it right away, so the project is still not a git repository.
+npm warned that some install scripts (esbuild, lmdb, msgpackr-extract) were blocked. The build and tests work without them.
+Next is Milestone 1: the RequestExecutionService interface, BrowserFetchExecutor, and the pure request-building logic with its unit tests. Say go, or tell me if you'd like Step 0's open items finished first.
+
+
+
+====================================
+
+
+
+Milestone 1 is implemented and working. The final checks pass: lint, production build, 49 unit tests, and 11 checks in a real headless Chromium. The initial bundle is 77 KB gzipped, and Monaco loads only when an editor opens.
+
+What you can do now
+
+Pick a method, type a URL and send. Params stay in sync with the URL in both directions.
+Add headers, and add a JSON body in a Monaco editor.
+Send, with a progress bar while waiting, and cancel in flight.
+Define environments with {{variable}} substitution, using the selector and Manage dialog in the header.
+See status, time and size, plus Pretty/Raw JSON, a headers table and a cookies tab. Bodies over 10 MB are download-only, and images and other binary content only get a download button for now.
+Resize the sidebar and the request/response panels by dragging or with the arrow keys.
+How it's built
+
+RequestExecutionService is the interface and BrowserFetchExecutor is the implementation. Request preparation is pure, so a future backend executor can reuse it.
+HTTP error statuses such as 404 show up as normal responses. Network failures, "possibly CORS", mixed content, timeout and cancel are reported as distinct errors, and the CORS case says it can't be confirmed.
+The core logic is in src/app/core/ and the UI is in src/app/features/.
+Bug caught by the browser test
+
+Typing X-Token quickly into the empty header row produced -Token, because the first keystroke was lost. I rewrote the key-value editor and added a regression test. Unit tests alone wouldn't have found it.
+Caveats
+
+Browser test not in repo: the Playwright run lives in the scratchpad, not the project. The README's e2e item stays unchecked until we add Playwright as a project dependency.
+Timeout: it is fixed at 30 s, with no UI option yet.
+Forbidden headers: warnings appear after sending, not while editing.
+Open Step 0 items: the Content Security Policy plan and the e2e tool.
+Build checks: tsc and npm test don't compile templates, so always run npm run build too. I added a note about this to AGENTS.md.
+Decisions to confirm
+
+I let features/workspace import the other features, because it assembles them. This is an explicit exception in the lint config and in AGENTS.md.
+Monaco is served as copied static files from /monaco/vs, not bundled. Any future CSP will need worker-src blob: for it.
+Next is Milestone 2: more body types, multipart and file uploads, upload progress, and authorization.
+
+
+
+====================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

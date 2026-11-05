@@ -1,0 +1,119 @@
+:host {
+  display: block;
+  height: 100%;
+  overflow: auto;
+  background: var(--mat-sys-surface-container-low);
+}
+
+nav {
+  padding: 8px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 4px 8px;
+
+  h2 {
+    margin: 0;
+    font: var(--mat-sys-title-small);
+  }
+}
+
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.folders {
+  padding-left: 14px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+
+  &:hover {
+    background: var(--mat-sys-surface-container-highest);
+  }
+}
+
+.toggle,
+.more {
+  color: inherit;
+  font: inherit;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.toggle {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 30px;
+  padding: 0 4px;
+  text-align: left;
+}
+
+.collection .toggle {
+  font-weight: 600;
+}
+
+.chevron {
+  flex: 0 0 auto;
+  width: 12px;
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.more {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+}
+
+.toggle:focus-visible,
+.more:focus-visible {
+  outline: 2px solid var(--mat-sys-primary);
+  outline-offset: -2px;
+}
+
+.hint {
+  margin: 8px 4px;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.nested {
+  margin-left: 26px;
+  font: var(--mat-sys-body-small);
+}
+
+.error {
+  margin: 4px 0 8px;
+  padding: 8px;
+  color: var(--mat-sys-on-error-container);
+  background: var(--mat-sys-error-container);
+  border-radius: 6px;
+  font: var(--mat-sys-body-small);
+
+  button {
+    margin-top: 4px;
+    color: inherit;
+    font: inherit;
+    text-decoration: underline;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+  }
+}

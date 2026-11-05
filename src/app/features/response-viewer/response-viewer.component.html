@@ -1,0 +1,129 @@
+@switch (state().status) {
+  @case ('idle') {
+    <p class="empty">Send a request to see the response here.</p>
+  }
+  @case ('sending') {
+    <mat-progress-bar mode="indeterminate" aria-label="Waiting for response" />
+    <p class="empty" role="status">Waiting for a response…</p>
+  }
+  @case ('done') {
+    @if (failure(); as failed) {
+      <div class="error" role="alert">
+        <h2>{{ failed.error.kind === 'aborted' ? 'Request cancelled' : 'Request failed' }}</h2>
+        <p>{{ failed.error.message }}</p>
+        @if (failed.error.hint) {
+          <p class="hint">{{ failed.error.hint }}</p>
+        }
+        @if (failed.durationMs !== null) {
+          <p class="hint">After {{ format.duration(failed.durationMs) }}.</p>
+        }
+      </div>
+    }
+
+    @if (success(); as ok) {
+      <div class="summary">
+        <span class="status" [class]="statusClass()" aria-label="HTTP status">
+          {{ ok.response.status }} {{ format.status(ok.response.status, ok.response.statusText) }}
+        </span>
+        <span>Time: {{ format.duration(ok.response.durationMs) }}</span>
+        <span>Size: {{ format.bytes(ok.response.body.size) }}</span>
+        @if (ok.response.redirected) {
+          <span>Redirected</span>
+        }
+      </div>
+    }
+
+    @if (warnings().length > 0) {
+      <ul class="warnings" aria-label="Warnings">
+        @for (warning of warnings(); track $index) {
+          <li>{{ warning }}</li>
+        }
+      </ul>
+    }
+
+    @if (success(); as ok) {
+      <mat-tab-group class="tabs" animationDuration="0ms">
+        <mat-tab label="Body">
+          <div class="body">
+            @if (isTextual() && !tooLarge()) {
+              <div class="toolbar">
+                @if (kind() === 'json') {
+                  <mat-button-toggle-group
+                    aria-label="Body format"
+                    [value]="view()"
+                    (change)="view.set($event.value)"
+                    hideSingleSelectionIndicator
+                  >
+                    <mat-button-toggle value="pretty">Pretty</mat-button-toggle>
+                    <mat-button-toggle value="raw">Raw</mat-button-toggle>
+                  </mat-button-toggle-group>
+                }
+                <button mat-button type="button" (click)="download()" [disabled]="ok.response.body.size === 0">Download</button>
+              </div>
+              @if (ok.response.body.size === 0) {
+                <p class="empty">The response has no body.</p>
+              } @else {
+                <div class="editor">
+                  <app-code-editor
+                    label="Response body"
+                    [readOnly]="true"
+                    [language]="language()"
+                    [value]="shownText()"
+                  />
+                </div>
+              }
+            } @else {
+              <div class="notice">
+                @if (tooLarge()) {
+                  <p>
+                    The body is {{ format.bytes(ok.response.body.size) }}, which is too large to display. Download it to
+                    inspect it.
+                  </p>
+                } @else {
+                  <p>
+                    This response is {{ ok.response.body.contentType ?? 'of unknown type' }}
+                    ({{ format.bytes(ok.response.body.size) }}). Previews for images and binary content are not
+                    available yet. Download it to view it.
+                  </p>
+                }
+                <button mat-stroked-button type="button" (click)="download()">Download</button>
+              </div>
+            }
+          </div>
+        </mat-tab>
+
+        <mat-tab [label]="'Headers (' + ok.response.headers.length + ')'">
+          <div class="scroll">
+            @if (ok.response.headers.length === 0) {
+              <p class="empty">No response headers are visible. Cross-origin responses expose only headers the server allows.</p>
+            } @else {
+              <table>
+                <caption class="visually-hidden">Response headers</caption>
+                <thead><tr><th scope="col">Name</th><th scope="col">Value</th></tr></thead>
+                <tbody>
+                  @for (header of ok.response.headers; track $index) {
+                    <tr><th scope="row">{{ header.name }}</th><td>{{ header.value }}</td></tr>
+                  }
+                </tbody>
+              </table>
+            }
+          </div>
+        </mat-tab>
+
+        <mat-tab label="Cookies">
+          <div class="scroll">
+            @if (ok.response.cookies.available) {
+              <ul>
+                @for (cookie of ok.response.cookies.value; track $index) {
+                  <li>{{ cookie }}</li>
+                }
+              </ul>
+            } @else {
+              <p class="empty">Cookies are not available. {{ ok.response.cookies.reason }}</p>
+            }
+          </div>
+        </mat-tab>
+      </mat-tab-group>
+    }
+  }
+}

@@ -1,0 +1,32 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-width: 1024px;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 16px;
+  background: var(--mat-sys-surface-container);
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+
+  h1 {
+    margin: 0;
+    font: var(--mat-sys-title-medium);
+  }
+}
+
+.main {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+main,
+section {
+  display: block;
+  height: 100%;
+  min-height: 0;
+}
