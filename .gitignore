@@ -42,3 +42,18 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# Angular
+.angular/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# Temporary files
+temp/
+
