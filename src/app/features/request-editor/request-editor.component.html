@@ -63,4 +63,12 @@
   <mat-tab [label]="'Body' + (draft().body.type !== 'none' ? ' •' : '')">
     <app-body-editor />
   </mat-tab>
+
+  <mat-tab [label]="'Tests' + (testCount() ? ' (' + testCount() + ')' : '')">
+    <app-tests-editor />
+  </mat-tab>
+
+  <mat-tab [label]="'Scripts' + (hasScripts() ? ' •' : '')">
+    <app-scripts-editor />
+  </mat-tab>
 </mat-tab-group>

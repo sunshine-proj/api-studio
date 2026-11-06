@@ -8,6 +8,7 @@ import { CollectionStore } from '@core/services/collection-store.service';
 import { RequestSession } from '@core/services/request-session.service';
 import { SavedRequestStore } from '@core/services/saved-request-store.service';
 import { folderSubtreeIds } from '@core/utils/collection-tree.util';
+import { RunDialogComponent, RunDialogData } from './run-dialog.component';
 import { ConfirmDialogComponent, ConfirmDialogData } from '@shared/components/dialogs/confirm-dialog.component';
 import {
   LocationDialogComponent,
@@ -92,6 +93,11 @@ export class CollectionsSidebarComponent {
     });
     if (!confirmed) return;
     await (kind === 'collection' ? this.store.deleteCollection(id) : this.store.deleteFolder(id));
+  }
+
+  protected run(kind: NodeKind, id: string, name: string, collectionId: string): void {
+    const data: RunDialogData = { title: name, collectionId, folderId: kind === 'folder' ? id : null };
+    this.dialog.open(RunDialogComponent, { data, autoFocus: 'dialog' });
   }
 
   // --- Saved requests ---

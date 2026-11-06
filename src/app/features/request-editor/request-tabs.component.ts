@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, ElementRef, inject } from '@angular/core';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
-import { RequestSession } from '@core/services/request-session.service';
-import { RequestTab } from '@core/services/request-tab';
+import { RequestSession, SessionTab } from '@core/services/request-session.service';
 import { RequestSaveFlow } from './request-save.service';
 
 /** The row of open requests. Unsaved changes are marked with a dot and survive switching tabs. */
@@ -23,7 +22,7 @@ import { RequestSaveFlow } from './request-save.service';
             (keydown)="navigate($event)"
             (auxclick)="closeOnMiddleClick($event, tab)"
           >
-            <span class="method">{{ tab.draft().method }}</span>
+            <span class="method">{{ tab.badge() }}</span>
             <span class="title" [title]="tab.title()">{{ tab.title() }}</span>
             @if (tab.dirty()) {
               <span class="dot" aria-hidden="true">●</span>
@@ -33,11 +32,18 @@ import { RequestSaveFlow } from './request-save.service';
           <button type="button" class="close" [attr.aria-label]="'Close ' + tab.title()" (click)="flow.close(tab)">×</button>
         </div>
       }
-      <button type="button" class="add" aria-label="New request tab" title="New request tab" (click)="session.newTab()">+</button>
+      <button type="button" class="add" aria-label="New tab" title="New tab" [matMenuTriggerFor]="newMenu">+</button>
     </div>
+    <mat-menu #newMenu="matMenu">
+      <button mat-menu-item type="button" (click)="session.newTab()">HTTP request</button>
+      <button mat-menu-item type="button" (click)="session.newTab('websocket')">WebSocket</button>
+      <button mat-menu-item type="button" (click)="session.newTab('sse')">Event stream (SSE)</button>
+    </mat-menu>
     <button type="button" class="more" aria-label="Tab actions" [matMenuTriggerFor]="menu">⋯</button>
     <mat-menu #menu="matMenu">
-      <button mat-menu-item type="button" (click)="flow.saveAs(session.activeTab())">Save as…</button>
+      @if (session.activeRequest(); as request) {
+        <button mat-menu-item type="button" (click)="flow.saveAs(request)">Save as…</button>
+      }
       <button mat-menu-item type="button" (click)="session.duplicateTab(session.activeId())">Duplicate tab</button>
       <button mat-menu-item type="button" (click)="flow.close(session.activeTab())">Close tab</button>
     </mat-menu>
@@ -65,7 +71,7 @@ export class RequestTabsComponent {
     queueMicrotask(() => this.host.nativeElement.querySelector<HTMLElement>(`#request-tab-${tabs[target].id}`)?.focus());
   }
 
-  protected closeOnMiddleClick(event: MouseEvent, tab: RequestTab): void {
+  protected closeOnMiddleClick(event: MouseEvent, tab: SessionTab): void {
     if (event.button !== 1) return;
     event.preventDefault();
     void this.flow.close(tab);

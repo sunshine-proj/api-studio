@@ -34,8 +34,9 @@ function holdsOnlyPlaceholders(value: string): boolean {
  *   reopening the request still works. Values shorter than
  *   `MIN_SECRET_LENGTH` are not searched for.
  *
- * Secrets typed directly into a body field under another name cannot be
- * recognized; the UI says that history is not a place for secrets.
+ * Secrets typed directly into a body field, an assertion or a script under
+ * another name cannot be recognized; the UI says that history is not a place
+ * for secrets.
  */
 export function redactDefinition(definition: RequestDefinition, secrets: readonly SecretVariable[]): RequestDefinition {
   const searchable = secrets
@@ -53,6 +54,7 @@ export function redactDefinition(definition: RequestDefinition, secrets: readonl
     const config = definition.auth;
     switch (config.type) {
       case 'none':
+      case 'oauth2': // a public client: nothing secret is stored (the token is kept in memory only)
         return config;
       case 'basic':
         return { ...config, username: scrub(config.username), password: credential(config.password) };
@@ -73,6 +75,8 @@ export function redactDefinition(definition: RequestDefinition, secrets: readonl
         return current;
       case 'text':
         return { ...current, content: scrub(current.content) };
+      case 'graphql':
+        return { ...current, query: scrub(current.query), variables: scrub(current.variables) };
       case 'urlencoded':
         return { ...current, fields: pairs(current.fields) };
       case 'multipart':
@@ -97,6 +101,12 @@ export function redactDefinition(definition: RequestDefinition, secrets: readonl
     })),
     auth,
     body,
+    ...(definition.assertions
+      ? { assertions: definition.assertions.map((a) => ({ ...a, property: scrub(a.property), expected: scrub(a.expected) })) }
+      : {}),
+    ...(definition.scripts
+      ? { scripts: { ...definition.scripts, preRequest: scrub(definition.scripts.preRequest), test: scrub(definition.scripts.test) } }
+      : {}),
   };
 }
 

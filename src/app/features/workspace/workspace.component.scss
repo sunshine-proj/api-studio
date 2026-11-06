@@ -45,7 +45,8 @@ section {
   display: block;
 }
 
-main app-request-editor {
+main app-request-editor,
+main app-realtime-editor {
   flex: 1 1 auto;
   height: auto;
   min-height: 0;

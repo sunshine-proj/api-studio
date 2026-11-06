@@ -102,9 +102,42 @@ describe('OpenAPI import (3.x)', () => {
   it('reports unsupported auth (OAuth) and TRACE operations', () => {
     expect(find('DELETE /pets/{petId}').definition.auth).toEqual({ type: 'none' });
     const text = bundle.warnings.join(' ');
-    expect(text).toMatch(/oauth2/);
+    expect(text).toMatch(/Only the OAuth 2.0 Authorization Code flow/);
     expect(text).toMatch(/TRACE/);
     expect(text).toMatch(/generated from the schemas/);
+  });
+});
+
+describe('OpenAPI import (OAuth 2.0)', () => {
+  const doc = (scheme: unknown) => ({
+    openapi: '3.0.0', info: { title: 'x' },
+    components: { securitySchemes: { oauth: scheme } },
+    paths: { '/a': { get: { security: [{ oauth: ['read', 'write'] }] } } },
+  });
+
+  it('maps an authorizationCode flow to OAuth settings with a clientId variable', () => {
+    const bundle = readOpenApi(doc({ type: 'oauth2', flows: { authorizationCode: { authorizationUrl: 'https://id.test/auth', tokenUrl: 'https://id.test/token', scopes: {} } } }));
+    expect(bundle.requests[0].definition.auth).toEqual({
+      type: 'oauth2', authorizationUrl: 'https://id.test/auth', tokenUrl: 'https://id.test/token', clientId: '{{clientId}}', scope: 'read write',
+    });
+    expect(bundle.environments[0].variables.find((v) => v.name === 'clientId')).toMatchObject({ secret: false });
+  });
+
+  it('does not import flows that need a client secret or are insecure (implicit, password, client credentials)', () => {
+    for (const flows of [{ implicit: { authorizationUrl: 'https://id.test/a', scopes: {} } }, { password: { tokenUrl: 'https://id.test/t', scopes: {} } }, { clientCredentials: { tokenUrl: 'https://id.test/t', scopes: {} } }]) {
+      const bundle = readOpenApi(doc({ type: 'oauth2', flows }));
+      expect(bundle.requests[0].definition.auth).toEqual({ type: 'none' });
+      expect(bundle.warnings.join(' ')).toMatch(/Only the OAuth 2.0 Authorization Code flow/);
+    }
+  });
+
+  it('maps a Swagger 2.0 accessCode flow', () => {
+    const bundle = readOpenApi({
+      swagger: '2.0', info: { title: 'x' }, host: 'h.test',
+      securityDefinitions: { oauth: { type: 'oauth2', flow: 'accessCode', authorizationUrl: 'https://id.test/a', tokenUrl: 'https://id.test/t' } },
+      paths: { '/a': { get: { security: [{ oauth: [] }] } } },
+    });
+    expect(bundle.requests[0].definition.auth).toMatchObject({ type: 'oauth2', tokenUrl: 'https://id.test/t' });
   });
 });
 

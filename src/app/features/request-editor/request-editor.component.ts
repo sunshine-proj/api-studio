@@ -10,6 +10,8 @@ import { formatBytes } from '@core/utils/response.util';
 import { KeyValueEditorComponent } from '@shared/components/key-value-editor/key-value-editor.component';
 import { AuthEditorComponent } from './auth-editor.component';
 import { BodyEditorComponent } from './body-editor.component';
+import { ScriptsEditorComponent } from './scripts-editor.component';
+import { TestsEditorComponent } from './tests-editor.component';
 import { RequestSaveFlow } from './request-save.service';
 
 const STANDARD_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'] as const;
@@ -30,6 +32,8 @@ const STANDARD_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTI
     KeyValueEditorComponent,
     AuthEditorComponent,
     BodyEditorComponent,
+    ScriptsEditorComponent,
+    TestsEditorComponent,
   ],
   host: {
     '(keydown.control.enter)': 'send()',
@@ -49,10 +53,17 @@ export class RequestEditorComponent {
   protected readonly draft = this.session.draft;
   protected readonly sending = computed(() => this.session.state().status === 'sending');
   protected readonly canSave = computed(() => {
-    const tab = this.session.activeTab();
-    return !tab.isSaved() || tab.dirty();
+    const tab = this.session.activeRequest();
+    return tab !== null && (!tab.isSaved() || tab.dirty());
   });
   protected readonly enabledParams = computed(() => this.draft().params.filter((p) => p.enabled).length);
+  protected readonly testCount = computed(
+    () => (this.draft().assertions ?? []).filter((a) => a.enabled).length + (this.draft().extractions ?? []).filter((e) => e.enabled).length,
+  );
+  protected readonly hasScripts = computed(() => {
+    const scripts = this.draft().scripts;
+    return scripts !== undefined && (scripts.preRequest.trim() !== '' || scripts.test.trim() !== '');
+  });
   protected readonly enabledHeaders = computed(() => this.draft().headers.filter((h) => h.enabled).length);
   protected readonly upload = computed(() => {
     const progress = this.session.uploadProgress();
@@ -75,7 +86,8 @@ export class RequestEditorComponent {
   }
 
   protected save(): void {
-    void this.flow.save(this.session.activeTab());
+    const tab = this.session.activeRequest();
+    if (tab) void this.flow.save(tab);
   }
 
   /** Ctrl/Cmd+S saves the request instead of opening the browser's "save page" dialog. */

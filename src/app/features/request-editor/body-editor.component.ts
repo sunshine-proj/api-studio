@@ -14,6 +14,7 @@ const BODY_KINDS: readonly { readonly kind: BodyKind; readonly label: string }[]
   { kind: 'urlencoded', label: 'Form URL Encoded' },
   { kind: 'multipart', label: 'Multipart Form Data' },
   { kind: 'binary', label: 'Binary' },
+  { kind: 'graphql', label: 'GraphQL' },
 ];
 
 const EDITOR_LANGUAGES: Readonly<Record<string, EditorLanguage>> = {
@@ -52,6 +53,36 @@ const EDITOR_LANGUAGES: Readonly<Record<string, EditorLanguage>> = {
             />
           </div>
         }
+        @case ('graphql') {
+          <div class="graphql">
+            <label class="label" for="graphql-operation">Operation name (optional)</label>
+            <input
+              id="graphql-operation"
+              class="operation"
+              autocomplete="off"
+              [value]="graphql()?.operationName ?? ''"
+              (input)="session.setGraphql({ operationName: $any($event.target).value })"
+            />
+            <span class="label">Query</span>
+            <div class="editor">
+              <app-code-editor
+                label="GraphQL query"
+                language="graphql"
+                [value]="graphql()?.query ?? ''"
+                (valueChange)="session.setGraphql({ query: $event })"
+              />
+            </div>
+            <span class="label">Variables (JSON)</span>
+            <div class="editor">
+              <app-code-editor
+                label="GraphQL variables"
+                language="json"
+                [value]="graphql()?.variables ?? ''"
+                (valueChange)="session.setGraphql({ variables: $event })"
+              />
+            </div>
+          </div>
+        }
         @case ('urlencoded') {
           <app-key-value-editor keyLabel="Field" [items]="urlencodedFields()" (itemsChange)="session.setUrlencoded($event)" />
         }
@@ -72,6 +103,10 @@ const EDITOR_LANGUAGES: Readonly<Record<string, EditorLanguage>> = {
         }
       }
     </div>
+
+    @if (body().type === 'graphql') {
+      <p class="hint padded">Sent as JSON ({{ '{' }} query, variables, operationName {{ '}' }}). Use POST. Variables such as <code ngNonBindable>{{name}}</code> are filled in first.</p>
+    }
 
     @if (body().type === 'multipart') {
       <p class="hint padded">
@@ -106,6 +141,31 @@ const EDITOR_LANGUAGES: Readonly<Record<string, EditorLanguage>> = {
     }
     .padded {
       padding: 8px 12px;
+    }
+    .graphql {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 0;
+      padding: 4px 0;
+    }
+    .graphql .editor {
+      flex: 1 1 0;
+      min-height: 120px;
+    }
+    .label {
+      margin: 4px 12px 2px;
+      font: var(--mat-sys-label-medium);
+    }
+    .operation {
+      height: 30px;
+      margin: 0 12px 4px;
+      padding: 0 8px;
+      font: inherit;
+      color: inherit;
+      background: transparent;
+      border: 1px solid var(--mat-sys-outline-variant);
+      border-radius: 4px;
     }
     .binary {
       display: flex;
@@ -142,6 +202,10 @@ export class BodyEditorComponent {
   protected readonly text = computed(() => {
     const body = this.body();
     return body.type === 'text' ? body.content : '';
+  });
+  protected readonly graphql = computed(() => {
+    const body = this.body();
+    return body.type === 'graphql' ? body : null;
   });
   protected readonly urlencodedFields = computed(() => {
     const body = this.body();

@@ -154,3 +154,57 @@ tbody th {
   height: 100%;
   overflow: auto;
 }
+
+.totals {
+  margin: 4px 0 8px;
+  font-weight: 600;
+  color: #2e7d32;
+
+  &.bad {
+    color: var(--mat-sys-error);
+  }
+}
+
+.checks {
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 8px;
+    padding: 3px 0;
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+  }
+
+  .mark {
+    width: 16px;
+    color: #2e7d32;
+  }
+
+  .fail .mark {
+    color: var(--mat-sys-error);
+  }
+
+  .detail {
+    color: var(--mat-sys-on-surface-variant);
+    font: var(--mat-sys-body-small);
+  }
+}
+
+.section {
+  margin: 12px 0 4px;
+  font: var(--mat-sys-title-small);
+}
+
+.logs {
+  margin: 0;
+  padding: 8px;
+  overflow: auto;
+  font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+  background: var(--mat-sys-surface-container);
+  border-radius: 6px;
+}

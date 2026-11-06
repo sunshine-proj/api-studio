@@ -107,6 +107,22 @@ export class EnvironmentStore {
     }
   }
 
+  /**
+   * Sets a variable of the active environment, adding it when missing (marked
+   * secret only if `secretIfNew`). Used by chaining and scripts. Returns false
+   * when no environment is active, so nothing was stored.
+   */
+  upsertVariable(name: string, value: string, secretIfNew = false): boolean {
+    const env = this.active();
+    if (!env) return false;
+    const existing = env.variables.find((variable) => variable.name === name);
+    const variables = existing
+      ? env.variables.map((variable) => (variable === existing ? { ...variable, value, enabled: true } : variable))
+      : [...env.variables, { id: newId(), name, value, enabled: true, secret: secretIfNew }];
+    this.patch(env.id, { variables });
+    return true;
+  }
+
   /** Switches the active environment (null for none). Unknown ids are ignored. */
   async setActive(id: string | null): Promise<void> {
     if (id === null || this.environments().some((env) => env.id === id)) {

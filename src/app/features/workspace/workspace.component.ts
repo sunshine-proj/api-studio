@@ -4,6 +4,8 @@ import { MatDialog } from '@angular/material/dialog';
 import { RequestSession } from '@core/services/request-session.service';
 import { SplitPaneComponent } from '@shared/components/split-pane/split-pane.component';
 import { EnvironmentSelectorComponent } from '../environments/environment-selector.component';
+import { RealtimeEditorComponent } from '../realtime/realtime-editor.component';
+import { RealtimeLogComponent } from '../realtime/realtime-log.component';
 import { RequestEditorComponent } from '../request-editor/request-editor.component';
 import { RequestTabsComponent } from '../request-editor/request-tabs.component';
 import { ResponseViewerComponent } from '../response-viewer/response-viewer.component';
@@ -20,6 +22,8 @@ import { ThemeSelectorComponent } from './theme-selector.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     MatButton,
+    RealtimeEditorComponent,
+    RealtimeLogComponent,
     SidebarComponent,
     EnvironmentSelectorComponent,
     RequestEditorComponent,
@@ -53,16 +57,26 @@ import { ThemeSelectorComponent } from './theme-selector.component';
       >
         <main first aria-label="Request">
           <app-request-tabs />
-          <app-request-editor />
+          @if (session.activeRealtime()) {
+            <app-realtime-editor />
+          } @else {
+            <app-request-editor />
+          }
         </main>
-        <section second aria-label="Response"><app-response-viewer /></section>
+        <section second [attr.aria-label]="session.activeRealtime() ? 'Messages' : 'Response'">
+          @if (session.activeRealtime()) {
+            <app-realtime-log />
+          } @else {
+            <app-response-viewer />
+          }
+        </section>
       </app-split-pane>
     </app-split-pane>
   `,
   styleUrl: './workspace.component.scss',
 })
 export class WorkspaceComponent {
-  private readonly session = inject(RequestSession);
+  protected readonly session = inject(RequestSession);
   private readonly dialog = inject(MatDialog);
 
   protected openImport(): void {

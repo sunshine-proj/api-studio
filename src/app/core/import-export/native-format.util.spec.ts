@@ -97,6 +97,7 @@ describe('native export and import', () => {
     expect(() => readNativeExport([])).toThrow(/not an API Studio export/);
     expect(() => readNativeExport({ format: 'api-studio' })).toThrow(/version/);
     expect(() => readNativeExport({ format: 'api-studio', version: 99 })).toThrow(/newer version/);
+    expect(() => readNativeExport({ format: 'api-studio', version: 1 })).not.toThrow();
     expect(() => readNativeExport({ format: 'api-studio', version: 1, requests: 'x' })).toThrow(/must be a list/);
   });
 
@@ -195,5 +196,50 @@ describe('native export and import', () => {
     const bundle = readNativeExport({ format: 'api-studio', version: 1, collections: [{ id: 'c', name: 'x'.repeat(500) }, { id: 'd', name: '   ' }] });
     expect(bundle.collections[0].name).toHaveLength(120);
     expect(bundle.collections[1].name).toBe('Imported collection');
+  });
+
+  it('round-trips assertions, extractions, GraphQL bodies and OAuth settings', () => {
+    const rich: ExportSource = {
+      ...source,
+      requests: [request('r1', {
+        definition: {
+          ...createEmptyRequest(), method: 'POST', url: 'https://a.test/graphql',
+          auth: { type: 'oauth2', authorizationUrl: 'https://id.test/authorize', tokenUrl: 'https://id.test/token', clientId: 'app', scope: 'read' },
+          body: { type: 'graphql', query: '{ me { id } }', variables: '{"a":1}', operationName: 'Me' },
+          assertions: [{ id: 'x', enabled: true, target: 'json', property: '$.data.me.id', operator: 'exists', expected: '' }],
+          extractions: [{ id: 'y', enabled: false, variable: 'userId', source: 'json', expression: '$.data.me.id', secret: true }],
+        },
+      })],
+    };
+    const d = roundTrip(buildNativeExport(rich, { includeSecrets: false })).requests[0].definition;
+    expect(d.auth).toEqual({ type: 'oauth2', authorizationUrl: 'https://id.test/authorize', tokenUrl: 'https://id.test/token', clientId: 'app', scope: 'read' });
+    expect(d.body).toEqual({ type: 'graphql', query: '{ me { id } }', variables: '{"a":1}', operationName: 'Me' });
+    expect(d.assertions).toMatchObject([{ target: 'json', property: '$.data.me.id', operator: 'exists', enabled: true }]);
+    expect(d.extractions).toMatchObject([{ variable: 'userId', source: 'json', secret: true, enabled: false }]);
+  });
+
+  it('imports scripts switched off, whatever the file says, and tells the user', () => {
+    const withScripts: ExportSource = {
+      ...source,
+      requests: [request('r1', { definition: { ...createEmptyRequest(), url: 'https://a.test', scripts: { enabled: true, preRequest: 'env.set("a","1")', test: '' } } })],
+    };
+    const bundle = roundTrip(buildNativeExport(withScripts, { includeSecrets: true }));
+    expect(bundle.requests[0].definition.scripts).toEqual({ enabled: false, preRequest: 'env.set("a","1")', test: '' });
+    expect(bundle.warnings.join(' ')).toMatch(/imported switched off/);
+  });
+
+  it('drops empty scripts and ignores malformed test rows', () => {
+    const bundle = readNativeExport({
+      format: 'api-studio', version: 2,
+      collections: [{ id: 'c', name: 'C' }],
+      requests: [{ id: 'r', collectionId: 'c', name: 'x', definition: {
+        method: 'GET', url: 'https://a.test', scripts: { enabled: true, preRequest: '  ', test: '' },
+        assertions: [{ target: 'nonsense', operator: 'telepathy', expected: 5 }, 'junk'],
+      } }],
+    });
+    const d = bundle.requests[0].definition;
+    expect(d.scripts).toBeUndefined();
+    expect(d.assertions).toMatchObject([{ target: 'status', operator: 'equals', expected: '' }]);
+    expect(bundle.warnings).toEqual([]);
   });
 });

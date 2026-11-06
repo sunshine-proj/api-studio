@@ -71,7 +71,7 @@ describe('RequestSession', () => {
     };
     executor.release(result);
     await sending;
-    expect(session.state()).toEqual({ status: 'done', result });
+    expect(session.state()).toMatchObject({ status: 'done', result });
   });
 
   it('ignores a second send while one is running', async () => {
@@ -160,12 +160,12 @@ describe('RequestSession', () => {
 
     it('starts with one empty, clean tab', () => {
       expect(session.tabs()).toHaveLength(1);
-      expect(session.activeTab().title()).toBe('New request');
+      expect(session.activeRequest()!.title()).toBe('New request');
       expect(session.hasUnsavedChanges()).toBe(false);
     });
 
     it('keeps each tab\'s edits and response when switching', async () => {
-      const first = session.activeTab();
+      const first = session.activeRequest()!;
       session.setUrl('https://a.test/one');
       session.setBodyKind('json');
       session.setBodyText('{"a":1}');
@@ -192,7 +192,7 @@ describe('RequestSession', () => {
     });
 
     it('can run a request in each tab at the same time', async () => {
-      const first = session.activeTab();
+      const first = session.activeRequest()!;
       const sendingFirst = session.send();
       const second = session.newTab();
       const sendingSecond = session.send();
@@ -210,7 +210,7 @@ describe('RequestSession', () => {
     });
 
     it('saves a new request, then tracks unsaved changes against the stored version', async () => {
-      const tab = session.activeTab();
+      const tab = session.activeRequest()!;
       session.setUrl('https://a.test/users');
       expect(tab.dirty()).toBe(true);
       expect(await session.save(tab.id)).toBe('needs-location');
@@ -232,7 +232,7 @@ describe('RequestSession', () => {
     });
 
     it('creates a new collection when saving into one that does not exist yet', async () => {
-      const tab = session.activeTab();
+      const tab = session.activeRequest()!;
       session.setUrl('https://a.test/y');
       expect(await session.saveAs(tab.id, { name: 'Y', collectionId: null, newCollectionName: 'Fresh', folderId: null })).toBe(true);
       const collections = TestBed.inject(CollectionStore).collections();
@@ -241,7 +241,7 @@ describe('RequestSession', () => {
     });
 
     it('reports a failed save and keeps the tab dirty', async () => {
-      const tab = session.activeTab();
+      const tab = session.activeRequest()!;
       session.setUrl('https://a.test/x');
       saved.clearError();
       expect(await session.saveAs(tab.id, { name: 'X', collectionId: 'missing', folderId: null })).toBe(false);
@@ -255,29 +255,29 @@ describe('RequestSession', () => {
       session.openSaved(request.id);
       // the pristine starter tab is reused instead of keeping an empty one beside it
       expect(session.tabs()).toHaveLength(1);
-      expect(session.activeTab().title()).toBe('Get users');
+      expect(session.activeRequest()!.title()).toBe('Get users');
       expect(session.draft().url).toBe('https://a.test/u');
 
       const other = session.newTab();
       session.openSaved(request.id);
       expect(session.tabs()).toHaveLength(2);
-      expect(session.activeTab()).not.toBe(other);
-      expect(session.activeTab().savedRequestId()).toBe(request.id);
+      expect(session.activeRequest()!).not.toBe(other);
+      expect(session.activeRequest()!.savedRequestId()).toBe(request.id);
     });
 
     it('follows a rename of the saved request', async () => {
       const request = (await saved.create('Old', collectionId, null, session.draft()))!;
       session.openSaved(request.id);
       await saved.rename(request.id, 'New name');
-      expect(session.activeTab().title()).toBe('New name');
+      expect(session.activeRequest()!.title()).toBe('New name');
     });
 
     it('turns a tab into an unsaved one when its request is deleted', async () => {
       const request = (await saved.create('Doomed', collectionId, null, { ...session.draft(), url: 'https://a.test/d' }))!;
       session.openSaved(request.id);
-      expect(session.activeTab().dirty()).toBe(false);
+      expect(session.activeRequest()!.dirty()).toBe(false);
       await saved.remove(request.id);
-      const tab = session.activeTab();
+      const tab = session.activeRequest()!;
       expect(tab.isSaved()).toBe(false);
       expect(tab.dirty()).toBe(true);
       expect(await session.save(tab.id)).toBe('needs-location');
@@ -287,17 +287,17 @@ describe('RequestSession', () => {
       session.setBodyKind('binary');
       const file = new File(['x'], 'x.bin');
       session.setBinaryFile(file);
-      const original = session.activeTab();
+      const original = session.activeRequest()!;
       session.newTab();
       session.duplicateTab(original.id);
       expect(session.tabs().map((t) => t.id)[1]).toBe(session.activeId());
       expect(session.activeId()).not.toBe(original.id);
       expect(session.files().get('binary')).toBe(file);
-      expect(session.activeTab().savedRequestId()).toBeNull();
+      expect(session.activeRequest()!.savedRequestId()).toBeNull();
     });
 
     it('closes tabs, picks a neighbour, cancels the request and always keeps one tab', () => {
-      const a = session.activeTab();
+      const a = session.activeRequest()!;
       const b = session.newTab();
       const c = session.newTab();
       void session.send();

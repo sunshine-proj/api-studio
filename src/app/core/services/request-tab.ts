@@ -1,12 +1,15 @@
 import { WritableSignal, computed, signal } from '@angular/core';
 import {
+  Assertion,
   AuthConfig,
   ExecutionResult,
+  Extraction,
   FileReference,
   FormDataField,
   KeyValue,
   RequestBody,
   RequestDefinition,
+  RequestScripts,
   SavedRequest,
   TextBodyLanguage,
   UploadProgress,
@@ -16,23 +19,25 @@ import { createEmptyRequest, sameDefinition } from '../utils/request-factory';
 import { suggestRequestName } from '../utils/request-name.util';
 import { BINARY_FILE_KEY } from '../utils/request-preparation.util';
 import { buildUrl, paramsFromUrl } from '../utils/url.util';
-import { RequestExecutionService } from './request-execution.service';
+import { ExecutionContext } from './request-execution.service';
+import { PipelineOutput, PipelineReport } from './request-pipeline.service';
 import { VariableMap } from '../utils/variable.util';
 
 export type ExecutionState =
   | { readonly status: 'idle' }
   | { readonly status: 'sending' }
-  | { readonly status: 'done'; readonly result: ExecutionResult };
+  | { readonly status: 'done'; readonly result: ExecutionResult; readonly report: PipelineReport };
 
 /** Body choices offered in the editor. */
-export type BodyKind = 'none' | TextBodyLanguage | 'urlencoded' | 'multipart' | 'binary';
+export type BodyKind = 'none' | TextBodyLanguage | 'urlencoded' | 'multipart' | 'binary' | 'graphql';
 
 export function fileReference(file: File): FileReference {
   return { name: file.name, size: file.size, mimeType: file.type };
 }
 
 export interface RequestTabDependencies {
-  readonly executor: RequestExecutionService;
+  /** Sends the request together with scripts, OAuth, extractions and assertions. */
+  readonly run: (definition: RequestDefinition, context: ExecutionContext) => Promise<PipelineOutput>;
   /** Variables of the active environment, read when a request is sent. */
   readonly variables: () => VariableMap;
   /** Finds a saved request. Read inside signals, so the tab follows renames and deletions. */
@@ -54,6 +59,7 @@ export interface RequestTabInit {
  * to signals and forward events.
  */
 export class RequestTab {
+  readonly kind = 'http' as const;
   readonly id = newId();
   private controller: AbortController | null = null;
 
@@ -63,6 +69,7 @@ export class RequestTab {
     urlencoded: [] as readonly KeyValue[],
     multipart: [] as readonly FormDataField[],
     binary: undefined as FileReference | undefined,
+    graphql: { query: '', variables: '', operationName: '' },
   };
 
   readonly draft: WritableSignal<RequestDefinition>;
@@ -87,6 +94,8 @@ export class RequestTab {
   /** True when the draft differs from what is stored (or, for an unsaved tab, from an empty request). */
   readonly dirty = computed(() => !sameDefinition(this.draft(), this.saved()?.definition ?? createEmptyRequest()));
   readonly sending = computed(() => this.state().status === 'sending');
+  /** Short label for tab strips: the HTTP method. */
+  readonly badge = computed(() => this.draft().method);
 
   constructor(
     private readonly deps: RequestTabDependencies,
@@ -133,6 +142,8 @@ export class RequestTab {
         return this.setBody({ type: 'multipart', fields: this.memory.multipart });
       case 'binary':
         return this.setBody({ type: 'binary', file: this.memory.binary });
+      case 'graphql':
+        return this.setBody({ type: 'graphql', ...this.memory.graphql });
       default:
         return this.setBody({ type: 'text', language: kind, content: this.memory.text });
     }
@@ -143,6 +154,25 @@ export class RequestTab {
     if (body.type === 'text') {
       this.setBody({ ...body, content });
     }
+  }
+
+  setGraphql(changes: Partial<{ query: string; variables: string; operationName: string }>): void {
+    const body = this.draft().body;
+    if (body.type === 'graphql') {
+      this.setBody({ ...body, ...changes });
+    }
+  }
+
+  setAssertions(assertions: readonly Assertion[]): void {
+    this.draft.update((draft) => ({ ...draft, assertions }));
+  }
+
+  setExtractions(extractions: readonly Extraction[]): void {
+    this.draft.update((draft) => ({ ...draft, extractions }));
+  }
+
+  setScripts(scripts: RequestScripts): void {
+    this.draft.update((draft) => ({ ...draft, scripts }));
   }
 
   setUrlencoded(fields: readonly KeyValue[]): void {
@@ -201,7 +231,7 @@ export class RequestTab {
     this.state.set({ status: 'sending' });
 
     const sent = this.draft();
-    const result = await this.deps.executor.execute(sent, {
+    const { result, report } = await this.deps.run(sent, {
       variables: this.deps.variables(),
       files: this.files(),
       signal: controller.signal,
@@ -214,7 +244,7 @@ export class RequestTab {
     if (this.controller === controller) {
       this.controller = null;
       this.uploadProgress.set(null);
-      this.state.set({ status: 'done', result });
+      this.state.set({ status: 'done', result, report });
     }
   }
 
@@ -260,6 +290,9 @@ export class RequestTab {
         break;
       case 'binary':
         this.memory = { ...this.memory, binary: body.file };
+        break;
+      case 'graphql':
+        this.memory = { ...this.memory, graphql: { query: body.query, variables: body.variables, operationName: body.operationName } };
         break;
       case 'none':
         break;

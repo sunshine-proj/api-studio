@@ -15,7 +15,7 @@ import { SettingsStore } from '@core/services/settings-store.service';
 import { resolveTheme } from '@core/utils/theme.util';
 import { loadMonaco } from './monaco-loader';
 
-export type EditorLanguage = 'json' | 'xml' | 'html' | 'plaintext' | 'javascript';
+export type EditorLanguage = 'json' | 'xml' | 'html' | 'plaintext' | 'javascript' | 'graphql';
 
 /** Monaco wrapper. Monaco is fetched lazily the first time an editor is shown. */
 @Component({

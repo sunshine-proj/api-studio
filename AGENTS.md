@@ -391,6 +391,19 @@ initial bundle and avoids bundler issues with its CSS and workers. Monaco starts
 its web workers from `blob:` URLs, so any Content Security Policy must allow
 `worker-src blob:` and `script-src 'self'`. Re-check this when a CSP is added.
 
+Request scripts run in a sandbox made of a `sandbox="allow-scripts"` iframe
+(never add `allow-same-origin`) whose own CSP is `default-src 'none'; script-src
+'unsafe-inline' blob:; worker-src blob:; connect-src 'none'`, containing a blob
+Worker that runs the script. That is the only place user script text is ever
+executed, and the app never uses `eval()` or `Function()` for it (see
+`core/scripting/script-sandbox.ts`). The setup was verified in Chromium; a
+canary check refuses scripts if a browser does not enforce the policy. Re-check
+it whenever a CSP is added to the app, since the app's policy must still allow
+`srcdoc` iframes and blob workers.
+
+OAuth tokens live in memory only (`OAuthTokenStore`) and must never be written
+to IndexedDB, exports, history or logs.
+
 `tsc` and `npm test` do not compile Angular templates. Always run
 `npm run build` too, because template errors only appear there.
 Run build, lint, and tests before reporting a task complete. If a command does

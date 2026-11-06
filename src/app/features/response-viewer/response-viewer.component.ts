@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, resource, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatButtonToggle, MatButtonToggleGroup } from '@angular/material/button-toggle';
@@ -43,6 +44,7 @@ interface DecodedBody {
     HtmlPreviewComponent,
     ImagePreviewComponent,
     JsonTreeComponent,
+    NgTemplateOutlet,
   ],
   templateUrl: './response-viewer.component.html',
   styleUrl: './response-viewer.component.scss',
@@ -59,6 +61,18 @@ export class ResponseViewerComponent {
   protected readonly failure = computed<ExecutionFailure | null>(() => {
     const state = this.state();
     return state.status === 'done' && !state.result.ok ? state.result : null;
+  });
+  protected readonly report = computed(() => {
+    const state = this.state();
+    return state.status === 'done' ? state.report : null;
+  });
+  protected readonly checkTotals = computed(() => {
+    const checks = this.report()?.checks ?? [];
+    return { total: checks.length, passed: checks.filter((c) => c.passed).length };
+  });
+  protected readonly testsLabel = computed(() => {
+    const { total, passed } = this.checkTotals();
+    return total === 0 ? 'Tests' : `Tests (${passed}/${total})`;
   });
   protected readonly warnings = computed(() => {
     const state = this.state();

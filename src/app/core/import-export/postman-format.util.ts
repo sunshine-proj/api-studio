@@ -130,10 +130,20 @@ function readBody(body: unknown, headers: readonly KeyValue[], notes: ImportNote
       notes.add('File fields keep only the file name. Choose the files again before sending.');
       return { type: 'binary', file: isRecord(body['file']) ? fileRef(body['file']['src']) : undefined };
     }
+    case 'graphql': {
+      const graphql = isRecord(body['graphql']) ? body['graphql'] : {};
+      const variables = graphql['variables'];
+      return {
+        type: 'graphql',
+        query: readString(graphql['query']),
+        variables: typeof variables === 'string' ? variables : isRecord(variables) ? JSON.stringify(variables, null, 2) : '',
+        operationName: '',
+      };
+    }
     case '':
       return { type: 'none' };
     default:
-      notes.add(`Request bodies of type "${readString(body['mode'])}" (such as GraphQL) are not supported and were imported without a body.`);
+      notes.add(`Request bodies of type "${readString(body['mode'])}" are not supported and were imported without a body.`);
       return { type: 'none' };
   }
 }
@@ -265,7 +275,7 @@ function exportAuth(auth: AuthConfig): JsonRecord | undefined {
     case 'apiKey':
       return { type: 'apikey', apikey: [param('key', auth.key), param('value', auth.value), param('in', auth.placement)] };
     default:
-      return undefined; // "none" and custom headers (exported as a header below)
+      return undefined; // "none", custom headers (exported as a header below) and OAuth 2.0 (tokens are never exported)
   }
 }
 
@@ -288,6 +298,8 @@ function exportBody(body: RequestBody): JsonRecord | undefined {
       };
     case 'binary':
       return { mode: 'file', file: { src: body.file?.name ?? '' } };
+    case 'graphql':
+      return { mode: 'graphql', graphql: { query: body.query, variables: body.variables } };
   }
 }
 

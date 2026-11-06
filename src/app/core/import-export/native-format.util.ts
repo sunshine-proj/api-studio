@@ -15,7 +15,8 @@ import { ImportNotes, isRecord, readBoolean, readNumber, readRecords, readString
 import { ImportError } from './safe-json.util';
 
 export const NATIVE_FORMAT = 'api-studio';
-export const NATIVE_VERSION = 1;
+/** Version 2 added assertions, extractions, scripts, GraphQL bodies and OAuth 2.0 settings. Version 1 files still import. */
+export const NATIVE_VERSION = 2;
 
 /** The data an export is built from. */
 export interface ExportSource {

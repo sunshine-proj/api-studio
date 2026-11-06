@@ -187,6 +187,41 @@ Collection ordering: the collection store loaded in random id order. The sidebar
 
 
 
+Milestone 6 is implemented and all seven README items are ticked. The TypeScript check, production build and lint pass, and all 360 unit tests pass three runs in a row. I also drove everything in Chromium with 54 checks against a local test server and no unexpected console output. Nothing is committed.
+
+What was built
+
+Sandboxed scripting:
+Scripts run in an iframe with an opaque origin and a CSP that forbids all network access. Inside it a blob Worker runs the script, so there is no DOM and no navigation, and it inherits the policy. The app never uses eval() or Function() on script text.
+In the browser test, fetch, WebSocket, document, window, storage and parent were all unavailable to a script. The server's exfiltration trap was never hit, and an infinite loop was stopped after 5 seconds without freezing the app.
+Imported scripts always arrive switched off, and Postman scripts aren't imported at all.
+A canary check runs first and refuses scripts if the browser doesn't enforce the policy. I confirmed the canary reports "open" when the policy is removed, so it isn't vacuous.
+OAuth 2.0 + PKCE:
+There is no client secret field and no implicit flow.
+My test provider verified the PKCE verifier and confirmed no secret was sent.
+Tokens are held in memory only, and I checked IndexedDB and localStorage for them.
+Chaining, assertions and runner: extract response values into environment variables, assert on status, headers, JSON paths and body, and run a collection or folder in sidebar order. The runner passes extracted values from one request to the next, even with no environment selected.
+GraphQL, WebSockets and Server-Sent Events: all work as described. SSE reads the stream with fetch instead of EventSource, so custom headers work.
+Things to know
+
+The sandbox is only verified in Chromium. In another browser it will either work or refuse scripts, but I haven't checked.
+Several limits are real:
+The OAuth token endpoint must allow CORS.
+A blocked sign-in popup can't be detected.
+WebSockets can't carry headers.
+Realtime tabs aren't saved to collections.
+Postman export drops assertions, extractions and scripts, because that format has no place for them.
+A pathological assertion regex can be slow.
+Native exports are now format version 2. Version 1 files still import, but older copies of the app refuse version 2 files.
+One unit test uses new Function. It runs our generated worker code to stand in for a Worker, because jsdom has none. It executes test-authored scripts only. The product code never does this.
+Some earlier docs were stale. I updated the Milestone 5 README text about OAuth and GraphQL, and added a script-sandbox note to AGENTS.md covering what to re-check when a CSP is added.
+The browser tests aren't in the project. They live in my scratchpad, so the end-to-end tool choice from the checklist is still open.
+
+
+
+
+====================================
+
 
 
 

@@ -412,16 +412,17 @@ failure leaves the data unchanged.
   Folders, requests, params, headers, raw, urlencoded, form-data and file
   bodies, Basic, Bearer and API key auth (inherited from collection and folder
   levels), and collection variables (imported as an environment). Scripts are
-  never imported or run, and unsupported parts (GraphQL bodies, OAuth, digest
-  and others) are reported. File fields keep only the file name. Export covers
+  never imported or run, and unsupported parts (OAuth, digest and others) are
+  reported. GraphQL bodies import as GraphQL. File fields keep only the file name. Export covers
   one collection; Postman environments are a separate format and are not
   supported.
 - [x] OpenAPI import (3.x and Swagger 2.0, JSON only). One collection, one folder
   per tag, one request per operation, and an environment with `baseUrl` and the
   variables the requests use (credential variables are marked secret). Bodies
   are generated as examples from the schemas. Only local `#/` references are
-  followed; nothing is ever fetched. OAuth 2.0 schemes, cookie parameters and
-  TRACE operations are reported as not imported. **YAML is not supported**
+  followed; nothing is ever fetched. OAuth 2.0 Authorization Code flows import as
+  OAuth settings (other flows, which are insecure or need a client secret, do
+  not); cookie parameters and TRACE operations are reported as not imported. **YAML is not supported**
   (convert it to JSON first); adding a YAML parser would be a new dependency.
 
 Import safety: files over 10 MB are refused before they are read; nesting over
@@ -431,13 +432,60 @@ send (for example `ftp:`) are flagged.
 
 ### Milestone 6: Advanced Features
 
-- [ ] OAuth 2.0 (Authorization Code with PKCE).
-- [ ] Request chaining.
-- [ ] Automated assertions.
-- [ ] GraphQL.
-- [ ] WebSockets.
-- [ ] Server-Sent Events.
-- [ ] Sandboxed scripting.
+- [x] OAuth 2.0 (Authorization Code with PKCE). A new authorization type. S256
+  challenge only, as a public client: there is no client secret field and no
+  implicit flow. The sign-in runs in a popup (opened with `noopener`) and
+  returns over a same-origin channel; `state` is checked. Endpoints must be
+  https (http only for localhost). Access and refresh tokens are kept **in
+  memory only**: never in IndexedDB, exports or history, so reloading signs you
+  out. Expired tokens are refreshed when a refresh token exists. Limits: the
+  token endpoint must allow CORS for this app's origin (browsers hide why it
+  fails otherwise), the redirect URI to register is `<origin>/oauth/callback`,
+  and a blocked popup cannot be detected (the UI says what to look for).
+- [x] Request chaining. "Extract to variables" rules copy a value from a
+  response (JSON path, header, status or regex) into a variable of the selected
+  environment, where later requests use it as `{{name}}`. Without a selected
+  environment the value cannot be kept, and the response says so.
+- [x] Automated assertions. Per request: status, header, JSON path, body or
+  duration, with equals / contains / regex / exists / numeric comparisons;
+  results appear in the response's Tests tab. `{{variables}}` work in expected
+  values. A **collection runner** (Run… on a collection or folder) sends the
+  requests in sidebar order, passes extracted values from one request to the
+  next (even without an environment), can stop at the first failure and shows
+  per-request results. It does not repeat requests or read data files, and
+  requests that need a chosen upload file fail, because saved requests do not
+  keep files. Regular expressions run against the response unguarded, so a
+  pathological pattern can be slow.
+- [x] GraphQL. A body type with a query editor, a variables editor and an
+  operation name; sent as a JSON `{ query, variables, operationName }` document.
+  Postman GraphQL bodies import and export. There is no schema explorer or
+  introspection.
+- [x] WebSockets. A tab type: connect, send text messages, and a message log
+  (last 1000, long messages shortened). Binary messages are shown by size. The
+  browser exposes no detail about handshake failures and lets a page set no
+  headers or cookies on a WebSocket, so none are offered.
+- [x] Server-Sent Events. A tab type that reads the stream with `fetch` instead of
+  `EventSource`, so request headers (for example Authorization) work; cookies are
+  not sent. Handles named events, multi-line data, `id` (sent back as
+  `Last-Event-ID` when you reconnect). It does not reconnect automatically.
+  WebSocket and event stream tabs are not saved to collections.
+- [x] Sandboxed scripting. Pre-request and test scripts per request, in a sandbox:
+  an iframe without `allow-same-origin` (no access to the app, its storage or
+  cookies) with a content security policy that forbids all network access,
+  containing a worker that runs the script (no DOM, cannot navigate or open
+  windows, and it inherits the policy). The app never evaluates script text
+  (`eval` and `Function` are not used). A 5 second limit stops runaway scripts.
+  Before the first script runs, a canary check proves the policy is enforced in
+  this browser; otherwise scripts are refused. Scripts can read and change the
+  request, read the response, set variables and report tests (`test`, `assert`).
+  **Imported scripts are always switched off** until you enable them in the
+  Scripts tab, and Postman scripts are not imported at all. Verified in Chromium
+  only; Firefox and Safari have not been checked.
+
+Native exports are now format version 2 (assertions, extractions, scripts,
+GraphQL bodies, OAuth settings); version 1 files still import, but older
+versions of the app refuse version 2 files. The Postman export format has no
+place for assertions, extractions or scripts, so those are left out of it.
 
 ### Release Readiness
 

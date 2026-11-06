@@ -20,6 +20,12 @@
       </div>
     }
 
+    @if (failure() && report(); as r) {
+      @if (r.logs.length > 0 || r.notes.length > 0) {
+        <ng-container *ngTemplateOutlet="reportDetails; context: { $implicit: r }" />
+      }
+    }
+
     @if (success(); as ok) {
       <div class="summary">
         <span class="status" [class]="statusClass()" aria-label="HTTP status">
@@ -132,6 +138,34 @@
           </div>
         </mat-tab>
 
+        <mat-tab [label]="testsLabel()">
+          <div class="scroll">
+            @if (report(); as r) {
+              @if (r.checks.length === 0 && r.extractions.length === 0 && r.logs.length === 0 && r.notes.length === 0) {
+                <p class="empty">No assertions, extractions or scripts are set for this request. Add them in the request's Tests and Scripts tabs.</p>
+              }
+              @if (r.checks.length > 0) {
+                <p class="totals" [class.bad]="checkTotals().passed < checkTotals().total" role="status">
+                  {{ checkTotals().passed }} of {{ checkTotals().total }} passed
+                </p>
+                <ul class="checks" aria-label="Test results">
+                  @for (check of r.checks; track $index) {
+                    <li [class.fail]="!check.passed">
+                      <span class="mark" aria-hidden="true">{{ check.passed ? '✔' : '✘' }}</span>
+                      <span class="visually-hidden">{{ check.passed ? 'Passed:' : 'Failed:' }}</span>
+                      <span class="label">{{ check.label }}</span>
+                      @if (check.message) {
+                        <span class="detail">{{ check.message }}</span>
+                      }
+                    </li>
+                  }
+                </ul>
+              }
+              <ng-container *ngTemplateOutlet="reportDetails; context: { $implicit: r }" />
+            }
+          </div>
+        </mat-tab>
+
         <mat-tab label="Cookies">
           <div class="scroll">
             @if (ok.response.cookies.available) {
@@ -149,3 +183,29 @@
     }
   }
 }
+
+<ng-template #reportDetails let-r>
+  @if (r.extractions.length > 0) {
+    <h3 class="section">Extracted variables</h3>
+    <ul class="checks" aria-label="Extracted variables">
+      @for (extraction of r.extractions; track extraction.id) {
+        <li [class.fail]="!extraction.ok">
+          <span class="mark" aria-hidden="true">{{ extraction.ok ? '✔' : '✘' }}</span>
+          <span class="label"><code>{{ extraction.variable || '(no name)' }}</code></span>
+          <span class="detail">{{ extraction.ok ? (extraction.secret ? '•••••• (secret)' : extraction.value) : extraction.message }}</span>
+        </li>
+      }
+    </ul>
+  }
+  @if (r.notes.length > 0) {
+    <ul class="warnings" aria-label="Notes">
+      @for (note of r.notes; track $index) {
+        <li>{{ note }}</li>
+      }
+    </ul>
+  }
+  @if (r.logs.length > 0) {
+    <h3 class="section">Script output</h3>
+    <pre class="logs">{{ r.logs.join('\n') }}</pre>
+  }
+</ng-template>

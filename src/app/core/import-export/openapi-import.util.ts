@@ -201,8 +201,28 @@ function readSecurity(
     variables.add('apiKey', '', true);
     return { type: 'apiKey', key: readString(scheme['name']), value: '{{apiKey}}', placement: scheme['in'] };
   }
-  notes.add(`Authorization of type "${type || 'unknown'}" (such as OAuth 2.0) is not imported. Requests that use it have no authorization set.`);
+  if (type === 'oauth2') {
+    const code = readAuthorizationCodeFlow(scheme);
+    if (code) {
+      variables.add('clientId', '', false);
+      const scopes = readList(first[schemeName]).filter((s): s is string => typeof s === 'string');
+      return { type: 'oauth2', authorizationUrl: code.authorizationUrl, tokenUrl: code.tokenUrl, clientId: '{{clientId}}', scope: scopes.join(' ') };
+    }
+    notes.add('Only the OAuth 2.0 Authorization Code flow is supported. Requests using another OAuth flow have no authorization set.');
+    return { type: 'none' };
+  }
+  notes.add(`Authorization of type "${type || 'unknown'}" is not imported. Requests that use it have no authorization set.`);
   return { type: 'none' };
+}
+
+/** The Authorization Code flow of an OAuth 2.0 scheme (OpenAPI 3 `flows.authorizationCode`, Swagger 2 `accessCode`). */
+function readAuthorizationCodeFlow(scheme: JsonRecord): { authorizationUrl: string; tokenUrl: string } | null {
+  const flows = isRecord(scheme['flows']) ? scheme['flows'] : null;
+  const flow = flows ? flows['authorizationCode'] : scheme['flow'] === 'accessCode' ? scheme : null;
+  if (!isRecord(flow)) return null;
+  const authorizationUrl = readString(flow['authorizationUrl']);
+  const tokenUrl = readString(flow['tokenUrl']);
+  return authorizationUrl !== '' && tokenUrl !== '' ? { authorizationUrl, tokenUrl } : null;
 }
 
 function resolverSchemes(document: JsonRecord, resolver: Resolver): JsonRecord {

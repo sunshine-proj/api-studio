@@ -1,5 +1,6 @@
-import { Collection, Folder } from '../models';
-import { buildCollectionTree, cleanName, folderSubtreeIds, nextSortOrder } from './collection-tree.util';
+import { Collection, Folder, SavedRequest } from '../models';
+import { buildCollectionTree, cleanName, findFolderNode, folderSubtreeIds, nextSortOrder, requestsInOrder } from './collection-tree.util';
+import { createEmptyRequest } from './request-factory';
 
 const collection = (id: string, sortOrder = 0, name = id): Collection => ({
   id, schemaVersion: 1, createdAt: 0, updatedAt: 0, name, description: '', sortOrder,
@@ -40,5 +41,28 @@ describe('collection tree', () => {
     expect(cleanName('  My API  ', 'x')).toBe('My API');
     expect(cleanName('   ', 'Fallback')).toBe('Fallback');
     expect(cleanName('a'.repeat(500), 'x')).toHaveLength(120);
+  });
+});
+
+describe('running order', () => {
+  const request = (id: string, collectionId: string, folderId: string | null, sortOrder = 0): SavedRequest => ({
+    id, schemaVersion: 1, createdAt: 0, updatedAt: 0, name: id, collectionId, folderId, sortOrder, definition: createEmptyRequest(),
+  });
+
+  const tree = buildCollectionTree(
+    [collection('c')],
+    [folder('a', 'c', null, 0), folder('a1', 'c', 'a', 0), folder('b', 'c', null, 1)],
+    [request('root2', 'c', null, 1), request('root1', 'c', null, 0), request('inA', 'c', 'a', 0), request('inA1', 'c', 'a1', 0), request('inB', 'c', 'b', 0)],
+  );
+
+  it('lists subfolders first, depth first, then the collection\'s own requests', () => {
+    expect(requestsInOrder(tree[0]).map((r) => r.id)).toEqual(['inA1', 'inA', 'inB', 'root1', 'root2']);
+  });
+
+  it('lists only what is inside a folder', () => {
+    const node = findFolderNode(tree[0].folders, 'a')!;
+    expect(requestsInOrder(node).map((r) => r.id)).toEqual(['inA1', 'inA']);
+    expect(findFolderNode(tree[0].folders, 'a1')?.folder.id).toBe('a1');
+    expect(findFolderNode(tree[0].folders, 'missing')).toBeUndefined();
   });
 });

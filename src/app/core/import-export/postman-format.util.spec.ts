@@ -84,11 +84,15 @@ describe('Postman import', () => {
   });
 
   it('reports unsupported auth and body types instead of dropping them silently', () => {
-    expect(byName('GraphQL').definition.body).toEqual({ type: 'none' });
     expect(byName('Weird auth').definition.auth).toEqual({ type: 'none' });
-    const text = bundle.warnings.join(' ');
-    expect(text).toMatch(/graphql/i);
-    expect(text).toMatch(/oauth2/);
+    expect(bundle.warnings.join(' ')).toMatch(/oauth2/);
+    const unknown = readPostmanCollection({ info: { name: 'x' }, item: [{ name: 'r', request: { method: 'POST', url: 'https://a.test', body: { mode: 'mystery' } } }] });
+    expect(unknown.requests[0].definition.body).toEqual({ type: 'none' });
+    expect(unknown.warnings.join(' ')).toMatch(/"mystery" are not supported/);
+  });
+
+  it('imports GraphQL bodies', () => {
+    expect(byName('GraphQL').definition.body).toEqual({ type: 'graphql', query: '{ a }', variables: '', operationName: '' });
   });
 
   it('turns collection variables into an environment', () => {

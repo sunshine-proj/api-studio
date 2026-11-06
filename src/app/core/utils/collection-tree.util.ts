@@ -108,3 +108,23 @@ export function ancestorFolderIds(folders: readonly Folder[], folderId: string |
   }
   return ids;
 }
+
+/** The requests of a collection or folder in the order they appear in the sidebar: subfolders first (depth first), then its own requests. */
+export function requestsInOrder(node: {
+  readonly folders?: readonly FolderNode[];
+  readonly children?: readonly FolderNode[];
+  readonly requests: readonly SavedRequest[];
+}): readonly SavedRequest[] {
+  const folders = node.folders ?? node.children ?? [];
+  return [...folders.flatMap((folder) => requestsInOrder(folder)), ...node.requests];
+}
+
+/** Finds a folder's node anywhere below the given ones. */
+export function findFolderNode(nodes: readonly FolderNode[], folderId: string): FolderNode | undefined {
+  for (const node of nodes) {
+    if (node.folder.id === folderId) return node;
+    const inside = findFolderNode(node.children, folderId);
+    if (inside) return inside;
+  }
+  return undefined;
+}

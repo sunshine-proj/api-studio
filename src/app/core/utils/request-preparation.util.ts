@@ -228,6 +228,32 @@ function prepareBody(
       defaultContentType(CONTENT_TYPES[body.language]);
       return { kind: 'ok', body: { type: 'text', content: resolve(body.content) }, unresolved };
 
+    case 'graphql': {
+      const query = resolve(body.query);
+      if (query.trim() === '') {
+        return { kind: 'error', message: 'The GraphQL query is empty.' };
+      }
+      const variablesText = resolve(body.variables);
+      let variables: unknown;
+      if (variablesText.trim() !== '') {
+        try {
+          variables = JSON.parse(variablesText);
+        } catch {
+          return { kind: 'error', message: 'The GraphQL variables are not valid JSON.' };
+        }
+        if (typeof variables !== 'object' || variables === null || Array.isArray(variables)) {
+          return { kind: 'error', message: 'The GraphQL variables must be a JSON object.' };
+        }
+      }
+      const operationName = resolve(body.operationName).trim();
+      defaultContentType(CONTENT_TYPES.json);
+      return {
+        kind: 'ok',
+        body: { type: 'text', content: JSON.stringify({ query, variables, operationName: operationName || undefined }) },
+        unresolved,
+      };
+    }
+
     case 'urlencoded': {
       const pairs: [string, string][] = body.fields
         .filter((field) => field.enabled && !(field.key === '' && field.value === ''))

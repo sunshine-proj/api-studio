@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { firstValueFrom } from 'rxjs';
-import { RequestSession } from '@core/services/request-session.service';
+import { RequestSession, SessionTab } from '@core/services/request-session.service';
 import { RequestTab } from '@core/services/request-tab';
 import { SavedRequestStore } from '@core/services/saved-request-store.service';
 import { ConfirmDialogComponent, ConfirmDialogData } from '@shared/components/dialogs/confirm-dialog.component';
@@ -53,7 +53,7 @@ export class RequestSaveFlow {
   }
 
   /** Closes the tab, first asking when it has unsaved changes. */
-  async close(tab: RequestTab): Promise<void> {
+  async close(tab: SessionTab): Promise<void> {
     if (tab.dirty()) {
       const data: ConfirmDialogData = {
         title: 'Close without saving?',

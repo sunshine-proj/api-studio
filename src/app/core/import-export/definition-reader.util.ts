@@ -1,6 +1,11 @@
 import {
+  Assertion,
+  AssertionOperator,
+  AssertionTarget,
   AuthConfig,
   CredentialsMode,
+  Extraction,
+  ExtractionSource,
   DEFAULT_REQUEST_OPTIONS,
   FileReference,
   FormDataField,
@@ -8,6 +13,7 @@ import {
   RedirectMode,
   RequestBody,
   RequestDefinition,
+  RequestScripts,
   TextBodyLanguage,
 } from '../models';
 import { newId } from '../utils/id';
@@ -16,6 +22,11 @@ import { ImportNotes, JsonRecord, isRecord, readBoolean, readNumber, readOneOf, 
 const LANGUAGES: readonly TextBodyLanguage[] = ['json', 'xml', 'text', 'javascript'];
 const REDIRECTS: readonly RedirectMode[] = ['follow', 'manual', 'error'];
 const CREDENTIALS: readonly CredentialsMode[] = ['omit', 'same-origin', 'include'];
+const TARGETS: readonly AssertionTarget[] = ['status', 'header', 'json', 'body', 'duration'];
+const OPERATORS: readonly AssertionOperator[] = [
+  'equals', 'not-equals', 'contains', 'not-contains', 'matches', 'exists', 'not-exists', 'less-than', 'greater-than',
+];
+const SOURCES: readonly ExtractionSource[] = ['json', 'header', 'status', 'regex'];
 const METHOD = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]{1,40}$/;
 
 export function readKeyValues(value: unknown): readonly KeyValue[] {
@@ -52,6 +63,14 @@ function readAuth(value: unknown, notes: ImportNotes): AuthConfig {
       };
     case 'custom':
       return { type: 'custom', headerName: readString(value['headerName']), headerValue: readString(value['headerValue']) };
+    case 'oauth2':
+      return {
+        type: 'oauth2',
+        authorizationUrl: readString(value['authorizationUrl']),
+        tokenUrl: readString(value['tokenUrl']),
+        clientId: readString(value['clientId']),
+        scope: readString(value['scope']),
+      };
     case 'none':
       return { type: 'none' };
     default:
@@ -89,12 +108,54 @@ function readBody(value: unknown, notes: ImportNotes): RequestBody {
       };
     case 'binary':
       return { type: 'binary', file: readFileReference(value['file']) };
+    case 'graphql':
+      return {
+        type: 'graphql',
+        query: readString(value['query']),
+        variables: readString(value['variables']),
+        operationName: readString(value['operationName']),
+      };
     case 'none':
       return { type: 'none' };
     default:
       notes.add('A request with an unknown body type was imported without a body.');
       return { type: 'none' };
   }
+}
+
+function readAssertions(value: unknown): readonly Assertion[] {
+  return readRecords(value).map((row) => ({
+    id: newId(),
+    enabled: readBoolean(row['enabled'], true),
+    target: readOneOf(row['target'], TARGETS, 'status'),
+    property: readString(row['property']),
+    operator: readOneOf(row['operator'], OPERATORS, 'equals'),
+    expected: readString(row['expected']),
+  }));
+}
+
+function readExtractions(value: unknown): readonly Extraction[] {
+  return readRecords(value).map((row) => ({
+    id: newId(),
+    enabled: readBoolean(row['enabled'], true),
+    variable: readString(row['variable']),
+    source: readOneOf(row['source'], SOURCES, 'json'),
+    expression: readString(row['expression']),
+    secret: readBoolean(row['secret'], false),
+  }));
+}
+
+/**
+ * Imported scripts are kept so they can be reviewed, but always switched off:
+ * an imported file must never cause code to run without the user's say-so.
+ */
+function readScripts(value: unknown, notes: ImportNotes): RequestScripts | undefined {
+  if (!isRecord(value)) return undefined;
+  const preRequest = readString(value['preRequest']);
+  const test = readString(value['test']);
+  if (preRequest.trim() === '' && test.trim() === '') return undefined;
+  notes.add('Some requests contain scripts. They were imported switched off. Review them in the Scripts tab before enabling them.');
+  return { enabled: false, preRequest, test };
 }
 
 /**
@@ -106,6 +167,9 @@ export function readDefinition(value: unknown, notes: ImportNotes): RequestDefin
   const method = readString(value['method']).trim().toUpperCase();
   if (!METHOD.test(method)) return null;
   const options: JsonRecord = isRecord(value['options']) ? value['options'] : {};
+  const assertions = readAssertions(value['assertions']);
+  const extractions = readExtractions(value['extractions']);
+  const scripts = readScripts(value['scripts'], notes);
   return {
     method,
     url: readString(value['url']),
@@ -118,6 +182,9 @@ export function readDefinition(value: unknown, notes: ImportNotes): RequestDefin
       redirect: readOneOf(options['redirect'], REDIRECTS, DEFAULT_REQUEST_OPTIONS.redirect),
       credentials: readOneOf(options['credentials'], CREDENTIALS, DEFAULT_REQUEST_OPTIONS.credentials),
     },
+    ...(assertions.length > 0 ? { assertions } : {}),
+    ...(extractions.length > 0 ? { extractions } : {}),
+    ...(scripts ? { scripts } : {}),
   };
 }
 

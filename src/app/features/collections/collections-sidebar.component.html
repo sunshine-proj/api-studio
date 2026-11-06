@@ -59,11 +59,11 @@
   <ul class="requests">
     @for (request of requests; track request.id) {
       <li>
-        <div class="row request" [class.current]="session.activeTab().savedRequestId() === request.id">
+        <div class="row request" [class.current]="session.activeRequest()?.savedRequestId() === request.id">
           <button
             type="button"
             class="toggle"
-            [attr.aria-current]="session.activeTab().savedRequestId() === request.id ? 'true' : null"
+            [attr.aria-current]="session.activeRequest()?.savedRequestId() === request.id ? 'true' : null"
             [attr.aria-label]="'Open request ' + request.name"
             (click)="session.openSaved(request.id)"
           >
@@ -111,6 +111,7 @@
 
 <mat-menu #menu="matMenu">
   <ng-template matMenuContent let-kind="kind" let-id="id" let-name="name" let-collectionId="collectionId">
+    <button mat-menu-item type="button" (click)="run(kind, id, name, collectionId)">Run…</button>
     <button mat-menu-item type="button" (click)="newFolder(collectionId, kind === 'folder' ? id : null)">New folder</button>
     <button mat-menu-item type="button" (click)="rename(kind, id, name)">Rename</button>
     <button mat-menu-item type="button" (click)="remove(kind, id, name)">Delete</button>
