@@ -45,23 +45,61 @@
       <mat-tab-group class="tabs" animationDuration="0ms">
         <mat-tab label="Body">
           <div class="body">
-            @if (isTextual() && !tooLarge()) {
+            @if (ok.response.body.size === 0) {
+              <p class="empty">The response has no body.</p>
+            } @else if (tooLarge()) {
+              <div class="notice" role="status">
+                <p>
+                  The body was <strong>not displayed</strong>: it is {{ format.bytes(ok.response.body.size) }}, above the
+                  {{ format.bytes(renderLimit()) }} display limit. Download it to inspect it. The limit can be changed in
+                  Settings.
+                </p>
+                <button mat-stroked-button type="button" (click)="download()">Download</button>
+              </div>
+            } @else if (kind() === 'binary') {
+              <div class="notice">
+                <p>
+                  This response is {{ ok.response.body.contentType ?? 'of unknown type' }}
+                  ({{ format.bytes(ok.response.body.size) }}) and cannot be shown as text. Download it to open it.
+                </p>
+                <button mat-stroked-button type="button" (click)="download()">Download</button>
+              </div>
+            } @else {
               <div class="toolbar">
-                @if (kind() === 'json') {
+                @if (views().length > 1) {
                   <mat-button-toggle-group
-                    aria-label="Body format"
-                    [value]="view()"
-                    (change)="view.set($event.value)"
+                    aria-label="Body view"
+                    [value]="activeView()"
+                    (change)="selectView($event.value)"
                     hideSingleSelectionIndicator
                   >
-                    <mat-button-toggle value="pretty">Pretty</mat-button-toggle>
-                    <mat-button-toggle value="raw">Raw</mat-button-toggle>
+                    @for (option of views(); track option.id) {
+                      <mat-button-toggle [value]="option.id">{{ option.label }}</mat-button-toggle>
+                    }
                   </mat-button-toggle-group>
+                } @else {
+                  <span></span>
                 }
-                <button mat-button type="button" (click)="download()" [disabled]="ok.response.body.size === 0">Download</button>
+                <button mat-button type="button" (click)="download()">Download</button>
               </div>
-              @if (ok.response.body.size === 0) {
-                <p class="empty">The response has no body.</p>
+
+              @if (kind() === 'image') {
+                <app-image-preview [blob]="ok.body" [contentType]="ok.response.body.contentType" />
+              } @else if (decoded.isLoading()) {
+                <p class="empty" role="status">Decoding the body…</p>
+              } @else if (activeView() === 'preview') {
+                <p class="hint">Sandboxed preview: scripts, forms and external resources are blocked.</p>
+                <div class="editor">
+                  <app-html-preview [html]="decoded.value()?.raw ?? ''" />
+                </div>
+              } @else if (activeView() === 'tree') {
+                @if (tree(); as parsed) {
+                  @if (parsed.ok) {
+                    <div class="editor"><app-json-tree [value]="parsed.value" /></div>
+                  } @else {
+                    <p class="empty" role="alert">The body is not valid JSON, so it cannot be shown as a tree. Use Raw instead.</p>
+                  }
+                }
               } @else {
                 <div class="editor">
                   <app-code-editor
@@ -72,22 +110,6 @@
                   />
                 </div>
               }
-            } @else {
-              <div class="notice">
-                @if (tooLarge()) {
-                  <p>
-                    The body is {{ format.bytes(ok.response.body.size) }}, which is too large to display. Download it to
-                    inspect it.
-                  </p>
-                } @else {
-                  <p>
-                    This response is {{ ok.response.body.contentType ?? 'of unknown type' }}
-                    ({{ format.bytes(ok.response.body.size) }}). Previews for images and binary content are not
-                    available yet. Download it to view it.
-                  </p>
-                }
-                <button mat-stroked-button type="button" (click)="download()">Download</button>
-              </div>
             }
           </div>
         </mat-tab>

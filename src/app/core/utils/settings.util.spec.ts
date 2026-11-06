@@ -1,4 +1,4 @@
-import { createDefaultSettings, normalizeSettings } from './settings.util';
+import { MAX_HISTORY_LIMIT, MAX_RENDER_BYTES, MIN_RENDER_BYTES, createDefaultSettings, normalizeSettings } from './settings.util';
 
 describe('normalizeSettings', () => {
   it('returns defaults for missing or non-object input', () => {
@@ -39,5 +39,13 @@ describe('normalizeSettings', () => {
     });
     expect(settings).toEqual({ ...createDefaultSettings(), createdAt: settings.createdAt, updatedAt: settings.updatedAt });
     expect('extra' in settings).toBe(false);
+  });
+
+  it('clamps limits to safe bounds', () => {
+    expect(normalizeSettings({ maxRenderedResponseBytes: 10 ** 12, historyLimit: 10 ** 9 })).toMatchObject({
+      maxRenderedResponseBytes: MAX_RENDER_BYTES,
+      historyLimit: MAX_HISTORY_LIMIT,
+    });
+    expect(normalizeSettings({ maxRenderedResponseBytes: 5 }).maxRenderedResponseBytes).toBe(MIN_RENDER_BYTES);
   });
 });

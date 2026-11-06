@@ -3,8 +3,33 @@ export type BodyKind = 'json' | 'xml' | 'html' | 'text' | 'image' | 'binary';
 /** Most response bytes kept in memory; anything beyond is cut off and flagged. */
 export const MAX_RESPONSE_BYTES = 50 * 1024 * 1024;
 
-/** Largest body rendered in the viewer. Bigger bodies can only be downloaded. */
-export const MAX_RENDERED_BYTES = 10 * 1024 * 1024;
+export type ResponseView = 'pretty' | 'tree' | 'raw' | 'preview';
+
+export interface ResponseViewOption {
+  readonly id: ResponseView;
+  readonly label: string;
+}
+
+/** The ways a body of this kind can be shown. The first one is the default. */
+export function availableViews(kind: BodyKind): readonly ResponseViewOption[] {
+  switch (kind) {
+    case 'json':
+      return [
+        { id: 'pretty', label: 'Pretty' },
+        { id: 'tree', label: 'Tree' },
+        { id: 'raw', label: 'Raw' },
+      ];
+    case 'html':
+      return [
+        { id: 'pretty', label: 'Source' },
+        { id: 'preview', label: 'Preview' },
+      ];
+    case 'image':
+      return [{ id: 'preview', label: 'Preview' }];
+    default:
+      return [];
+  }
+}
 
 function mimeOf(contentType: string | null): string {
   return (contentType ?? '').split(';')[0].trim().toLowerCase();
@@ -14,8 +39,9 @@ export function detectBodyKind(contentType: string | null): BodyKind {
   const mime = mimeOf(contentType);
   if (mime === 'application/json' || mime.endsWith('+json')) return 'json';
   if (mime === 'text/html' || mime === 'application/xhtml+xml') return 'html';
-  if (mime === 'application/xml' || mime === 'text/xml' || mime.endsWith('+xml')) return 'xml';
+  // Before the XML check: SVG is an image even though its type ends in "+xml".
   if (mime.startsWith('image/')) return 'image';
+  if (mime === 'application/xml' || mime === 'text/xml' || mime.endsWith('+xml')) return 'xml';
   if (
     mime.startsWith('text/') ||
     mime === 'application/javascript' ||

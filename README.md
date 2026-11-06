@@ -360,11 +360,34 @@ request, arrow keys / `Home` / `End` move between request tabs.
 
 ### Milestone 4: Advanced Response Handling
 
-- [ ] JSON tree and pretty views with syntax highlighting.
-- [ ] Sandboxed HTML preview.
-- [ ] Image preview and binary download.
-- [ ] Response size limits with user notification.
-- [ ] Request history with redaction of sensitive values.
+- [x] JSON tree and pretty views with syntax highlighting. JSON offers Pretty,
+  Tree and Raw; the tree opens the first two levels and shows large arrays
+  100 items at a time. Highlighting comes from Monaco. XML and HTML source is
+  shown as received (not reformatted).
+- [x] Sandboxed HTML preview (`<iframe sandbox="">`: no scripts, no same-origin
+  access). A content security policy inside the frame also blocks external
+  images, fonts and requests, so previews can look plainer than in a browser.
+  HTML opens as source; the preview is only rendered on request.
+- [x] Image preview (including SVG, shown through `<img>`, so it cannot run
+  scripts) and binary download, named from `Content-Disposition`, the URL or
+  the content type.
+- [x] Response size limits with user notification. Bodies above the display
+  limit (10 MB by default, 1 to 50 MB in Settings) are not rendered; the viewer
+  says so and offers a download. Bodies above 50 MB are cut off while receiving
+  and flagged.
+- [x] Request history with redaction of sensitive values (schema version 4).
+  Newest first, 100 entries by default (configurable), oldest purged first;
+  open an entry in a new tab, remove one, or clear all. What is redacted:
+  - `Authorization` and `Proxy-Authorization` header values, and literal
+    credentials in the auth settings. A value that is only `{{variable}}`
+    placeholders is kept, since it holds no secret.
+  - Values of variables marked secret (in any environment) wherever they
+    appear in the URL, params, headers or body; they are replaced by
+    `{{name}}`, so reopening still works. Secrets shorter than 4 characters
+    are not searched for.
+  - Not detectable: a secret typed literally into a body field or an
+    arbitrary header. Text bodies over 256 KB are cut short in history.
+  - Cancelled and never-sent requests are not recorded.
 
 ### Milestone 5: Import and Export
 

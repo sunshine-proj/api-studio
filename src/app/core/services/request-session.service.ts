@@ -2,6 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { AuthConfig, FormDataField, KeyValue, RequestDefinition } from '../models';
 import { CollectionStore } from './collection-store.service';
 import { EnvironmentStore } from './environment-store.service';
+import { HistoryStore } from './history-store.service';
 import { RequestExecutionService } from './request-execution.service';
 import { BodyKind, ExecutionState, RequestTab, fileReference } from './request-tab';
 import { SavedRequestStore } from './saved-request-store.service';
@@ -30,6 +31,7 @@ export class RequestSession {
   private readonly environments = inject(EnvironmentStore);
   private readonly store = inject(SavedRequestStore);
   private readonly collections = inject(CollectionStore);
+  private readonly history = inject(HistoryStore);
 
   private readonly tabsState = signal<readonly RequestTab[]>([this.createTab()]);
   private readonly activeIdState = signal(this.tabsState()[0].id);
@@ -67,6 +69,13 @@ export class RequestSession {
     // A pristine, never-used tab is replaced instead of piling up beside the new one.
     const replace = current.savedRequestId() === null && !current.dirty() && current.state().status === 'idle';
     this.addTab(tab, replace ? current.id : undefined);
+  }
+
+  /** Opens a request definition (for example from history) as a new unsaved tab. */
+  openDraft(definition: RequestDefinition): void {
+    const current = this.activeTab();
+    const replace = current.savedRequestId() === null && !current.dirty() && current.state().status === 'idle';
+    this.addTab(this.createTab({ draft: definition }), replace ? current.id : undefined);
   }
 
   /** Opens an unsaved copy of a tab right after it. Selected files are carried over. */
@@ -187,6 +196,7 @@ export class RequestSession {
         executor: this.executor,
         variables: () => this.environments.variables(),
         lookup: (id) => this.store.find(id),
+        onExecuted: (definition, result) => void this.history.record(definition, result),
       },
       init,
     );

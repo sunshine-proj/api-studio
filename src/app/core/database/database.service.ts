@@ -1,6 +1,6 @@
 import { Injectable, InjectionToken, OnDestroy, inject } from '@angular/core';
 import Dexie, { EntityTable } from 'dexie';
-import { AppSettings, Collection, Environment, Folder, SavedRequest } from '../models';
+import { AppSettings, Collection, Environment, Folder, HistoryEntry, SavedRequest } from '../models';
 
 export const DATABASE_NAME = new InjectionToken<string>('DATABASE_NAME', {
   providedIn: 'root',
@@ -18,6 +18,7 @@ export class ApiStudioDatabase extends Dexie {
   readonly requests!: EntityTable<SavedRequest, 'id'>;
   readonly environments!: EntityTable<Environment, 'id'>;
   readonly settings!: EntityTable<AppSettings, 'id'>;
+  readonly history!: EntityTable<HistoryEntry, 'id'>;
 
   constructor(name: string) {
     super(name);
@@ -33,6 +34,10 @@ export class ApiStudioDatabase extends Dexie {
     this.version(3).stores({
       environments: 'id, createdAt',
       settings: 'id',
+    });
+    // Version 4 adds request history, newest first by `executedAt`. No existing data has to change.
+    this.version(4).stores({
+      history: 'id, executedAt',
     });
   }
 }

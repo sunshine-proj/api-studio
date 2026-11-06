@@ -50,8 +50,8 @@ describe('ApiStudioDatabase', () => {
   it('creates every table on a fresh install', async () => {
     db = new ApiStudioDatabase(name);
     await db.open();
-    expect(db.tables.map((t) => t.name).sort()).toEqual(['collections', 'environments', 'folders', 'requests', 'settings']);
-    expect(db.verno).toBe(3);
+    expect(db.tables.map((t) => t.name).sort()).toEqual(['collections', 'environments', 'folders', 'history', 'requests', 'settings']);
+    expect(db.verno).toBe(4);
   });
 
   it('upgrades version 1 to the current version without losing data', async () => {
@@ -82,6 +82,23 @@ describe('ApiStudioDatabase', () => {
     expect(await db.requests.where('folderId').equals('f1').count()).toBe(1);
     expect(await db.collections.count()).toBe(1);
     expect(await db.environments.count()).toBe(0);
+  });
+
+  it('upgrades version 3 (with environments and settings) to version 4 without losing data', async () => {
+    const V3_STORES = { ...V2_STORES, environments: 'id, createdAt', settings: 'id' };
+    const env = { id: 'e1', schemaVersion: 1, createdAt: 1, updatedAt: 1, name: 'Dev', variables: [] };
+    await createOldDatabase(name, 3, V3_STORES, async (old) => {
+      await old.table('requests').add(request);
+      await old.table('environments').add(env);
+      await old.table('settings').add({ id: 'app', theme: 'dark' });
+    });
+
+    db = new ApiStudioDatabase(name);
+    await db.open();
+    expect(await db.environments.toArray()).toEqual([env]);
+    expect(await db.settings.get('app')).toMatchObject({ theme: 'dark' });
+    expect(await db.requests.count()).toBe(1);
+    expect(await db.history.count()).toBe(0);
   });
 
   it('keeps the new tables usable after an upgrade, with their indexes', async () => {

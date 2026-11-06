@@ -22,6 +22,15 @@ function pick<T extends string>(value: unknown, allowed: readonly T[], fallback:
   return allowed.find((candidate) => candidate === value) ?? fallback;
 }
 
+/** Hard bounds for user-configurable limits. The upper render bound is the most response data ever kept in memory. */
+export const MIN_RENDER_BYTES = 1024;
+export const MAX_RENDER_BYTES = 50 * 1024 * 1024;
+export const MAX_HISTORY_LIMIT = 1000;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
 function positiveNumber(value: unknown, fallback: number, allowZero = false): number {
   return typeof value === 'number' && Number.isFinite(value) && (allowZero ? value >= 0 : value > 0)
     ? Math.floor(value)
@@ -49,8 +58,12 @@ export function normalizeSettings(raw: unknown, now = Date.now()): AppSettings {
       redirect: pick(options['redirect'], REDIRECTS, defaultOptions.redirect),
       credentials: pick(options['credentials'], CREDENTIALS, defaultOptions.credentials),
     },
-    maxRenderedResponseBytes: positiveNumber(raw['maxRenderedResponseBytes'], defaults.maxRenderedResponseBytes),
-    historyLimit: positiveNumber(raw['historyLimit'], defaults.historyLimit),
+    maxRenderedResponseBytes: clamp(
+      positiveNumber(raw['maxRenderedResponseBytes'], defaults.maxRenderedResponseBytes),
+      MIN_RENDER_BYTES,
+      MAX_RENDER_BYTES,
+    ),
+    historyLimit: clamp(positiveNumber(raw['historyLimit'], defaults.historyLimit), 1, MAX_HISTORY_LIMIT),
     activeEnvironmentId: typeof raw['activeEnvironmentId'] === 'string' ? raw['activeEnvironmentId'] : null,
     storageNoticeAcknowledged: raw['storageNoticeAcknowledged'] === true,
   };

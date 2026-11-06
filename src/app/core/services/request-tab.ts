@@ -37,6 +37,8 @@ export interface RequestTabDependencies {
   readonly variables: () => VariableMap;
   /** Finds a saved request. Read inside signals, so the tab follows renames and deletions. */
   readonly lookup: (id: string) => SavedRequest | undefined;
+  /** Called with the request as sent and its outcome, e.g. to record history. */
+  readonly onExecuted?: (definition: RequestDefinition, result: ExecutionResult) => void;
 }
 
 export interface RequestTabInit {
@@ -198,7 +200,8 @@ export class RequestTab {
     this.uploadProgress.set(null);
     this.state.set({ status: 'sending' });
 
-    const result = await this.deps.executor.execute(this.draft(), {
+    const sent = this.draft();
+    const result = await this.deps.executor.execute(sent, {
       variables: this.deps.variables(),
       files: this.files(),
       signal: controller.signal,
@@ -207,6 +210,7 @@ export class RequestTab {
       },
     });
 
+    this.deps.onExecuted?.(sent, result);
     if (this.controller === controller) {
       this.controller = null;
       this.uploadProgress.set(null);

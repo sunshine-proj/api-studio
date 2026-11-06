@@ -1,4 +1,4 @@
-import { decodeBody, detectBodyKind, formatBytes, formatDuration, prettyPrintJson, statusDescription } from './response.util';
+import { availableViews, decodeBody, detectBodyKind, formatBytes, formatDuration, prettyPrintJson, statusDescription } from './response.util';
 
 describe('response util', () => {
   it('detects body kinds from content types', () => {
@@ -8,6 +8,7 @@ describe('response util', () => {
     expect(detectBodyKind('application/atom+xml')).toBe('xml');
     expect(detectBodyKind('text/plain')).toBe('text');
     expect(detectBodyKind('image/png')).toBe('image');
+    expect(detectBodyKind('image/svg+xml')).toBe('image');
     expect(detectBodyKind('application/pdf')).toBe('binary');
     expect(detectBodyKind(null)).toBe('text');
   });
@@ -34,5 +35,13 @@ describe('response util', () => {
     const latin1 = new Blob([new Uint8Array([0xe9])]);
     expect(await decodeBody(latin1, 'text/plain; charset=iso-8859-1')).toBe('é');
     expect(await decodeBody(new Blob(['ok']), 'text/plain; charset=bogus')).toBe('ok');
+  });
+
+  it('offers views per body kind, with a default first', () => {
+    expect(availableViews('json').map((v) => v.id)).toEqual(['pretty', 'tree', 'raw']);
+    expect(availableViews('html').map((v) => v.id)).toEqual(['pretty', 'preview']);
+    expect(availableViews('image').map((v) => v.id)).toEqual(['preview']);
+    expect(availableViews('binary')).toEqual([]);
+    expect(availableViews('xml')).toEqual([]);
   });
 });

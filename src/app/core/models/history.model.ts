@@ -11,4 +11,6 @@ export interface HistoryEntry extends PersistedEntity {
   readonly status: number | null;
   readonly durationMs: number | null;
   readonly error: ExecutionError | null;
+  /** True when a very large text body was cut short to keep the history small. */
+  readonly bodyTruncated?: boolean;
 }

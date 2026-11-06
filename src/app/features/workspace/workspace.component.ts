@@ -1,11 +1,14 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { MatButton } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { RequestSession } from '@core/services/request-session.service';
 import { SplitPaneComponent } from '@shared/components/split-pane/split-pane.component';
-import { CollectionsSidebarComponent } from '../collections/collections-sidebar.component';
 import { EnvironmentSelectorComponent } from '../environments/environment-selector.component';
 import { RequestEditorComponent } from '../request-editor/request-editor.component';
 import { RequestTabsComponent } from '../request-editor/request-tabs.component';
 import { ResponseViewerComponent } from '../response-viewer/response-viewer.component';
+import { SettingsDialogComponent } from './settings-dialog.component';
+import { SidebarComponent } from './sidebar.component';
 import { StorageNoticeComponent } from './storage-notice.component';
 import { ThemeSelectorComponent } from './theme-selector.component';
 
@@ -14,7 +17,8 @@ import { ThemeSelectorComponent } from './theme-selector.component';
   selector: 'app-workspace',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    CollectionsSidebarComponent,
+    MatButton,
+    SidebarComponent,
     EnvironmentSelectorComponent,
     RequestEditorComponent,
     RequestTabsComponent,
@@ -30,11 +34,12 @@ import { ThemeSelectorComponent } from './theme-selector.component';
       <div class="controls">
         <app-environment-selector />
         <app-theme-selector />
+        <button mat-stroked-button type="button" (click)="openSettings()">Settings</button>
       </div>
     </header>
     <app-storage-notice />
     <app-split-pane class="main" [initialPercent]="18" [minPx]="180" label="Resize sidebar">
-      <app-collections-sidebar first />
+      <app-sidebar first />
       <app-split-pane
         second
         direction="vertical"
@@ -54,6 +59,11 @@ import { ThemeSelectorComponent } from './theme-selector.component';
 })
 export class WorkspaceComponent {
   private readonly session = inject(RequestSession);
+  private readonly dialog = inject(MatDialog);
+
+  protected openSettings(): void {
+    this.dialog.open(SettingsDialogComponent, { autoFocus: 'first-tabbable' });
+  }
 
   /** Unsaved tabs live only in memory, so leaving the page would lose them. */
   protected warnAboutUnsavedChanges(event: BeforeUnloadEvent): void {

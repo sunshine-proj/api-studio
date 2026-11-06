@@ -1,6 +1,7 @@
 import { Injectable, computed, inject } from '@angular/core';
 import { CollectionStore } from './collection-store.service';
 import { EnvironmentStore } from './environment-store.service';
+import { HistoryStore } from './history-store.service';
 import { SavedRequestStore } from './saved-request-store.service';
 import { SettingsStore } from './settings-store.service';
 
@@ -12,6 +13,7 @@ export class StorageHealth {
     inject(SavedRequestStore),
     inject(EnvironmentStore),
     inject(SettingsStore),
+    inject(HistoryStore),
   ] as const;
 
   /** Distinct, user-facing messages about storage failures. Empty when everything is fine. */
