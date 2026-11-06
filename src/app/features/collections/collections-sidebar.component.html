@@ -64,10 +64,9 @@
             type="button"
             class="toggle"
             [attr.aria-current]="session.activeRequest()?.savedRequestId() === request.id ? 'true' : null"
-            [attr.aria-label]="'Open request ' + request.name"
             (click)="session.openSaved(request.id)"
           >
-            <span class="method" aria-hidden="true">{{ request.definition.method }}</span>
+            <span class="method">{{ request.definition.method }}</span>
             <span class="name" [title]="request.name">{{ request.name }}</span>
           </button>
           <button

@@ -4,6 +4,14 @@
   <meta charset="utf-8">
   <title>API Studio</title>
   <base href="/">
+  <!--
+    Content Security Policy. A browser API client must be able to call any origin, so connect-src is open;
+    everything else is closed. Monaco (the code editor) needs blob: workers and inline styles, and works
+    without 'unsafe-eval'. Script sandbox and HTML preview frames are srcdoc iframes that carry their own,
+    stricter policy. A meta tag cannot set frame-ancestors or report-uri: when hosting, also send the same
+    policy as an HTTP header and add frame-ancestors 'none' (see README, "Deploying").
+  -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src * data: blob:; worker-src blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
 </head>

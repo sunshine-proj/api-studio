@@ -379,10 +379,37 @@ npm scripts:
 - `npm run build`: production build.
 - `npm test`: unit tests (use `npm test -- --watch=false` for a single run).
 - `npm run lint`: lint, including module boundary rules.
-- `npm run e2e`: not defined yet. Choose an end-to-end tool (Playwright is the
-  candidate) before the first integration test is written.
+- `npm run e2e`: end-to-end tests with Playwright (`@playwright/test`, plus
+  `@axe-core/playwright` for accessibility). They build the production app,
+  serve it with `e2e/support/static-server.mjs`, and use the mock API in
+  `e2e/support/mock-api.mjs`. Use `npm run e2e:chromium` for the quick run;
+  `npm run e2e -- --project=firefox` needs `npx playwright install firefox`.
 
-Document the end-to-end tool choice here when made.
+End-to-end tool decision: Playwright, chosen because it drives Chromium,
+Firefox and WebKit, handles popups, downloads and file inputs (needed for
+OAuth, export and upload), and the browsers are the only way to verify what
+jsdom cannot (the script sandbox, the HTML preview sandbox, CSP, real CORS).
+
+Writing e2e tests:
+
+- Import `test` and `expect` from `e2e/support/fixtures.ts`, not from
+  `@playwright/test`. Its page fixture fails any test that logs a console error
+  or warning; a test that provokes one on purpose declares it with
+  `allowConsole(page, /pattern/)`.
+- Rendering is asynchronous (zoneless Angular): assert with `expect(...)`
+  (which retries) instead of reading state right after an action.
+- Find elements by role and accessible name, as users and assistive technology
+  do; Monaco's own input is zero pixels wide, so click its visible surface
+  (`setEditorText`).
+- Run build, lint, unit tests **and** `npm run e2e:chromium` before reporting a
+  UI task complete. Run Firefox too when touching the script sandbox, OAuth,
+  streaming or storage.
+
+The production `index.html` carries a strict Content Security Policy (scripts
+from the app only, no `unsafe-eval`). Do not add inline scripts or inline
+event handlers; put scripts in files under `public/` (as
+`script-sandbox-bootstrap.js` does). If the policy must change, document the
+reason here as a security decision.
 
 Monaco Editor is not bundled. Its prebuilt files are copied to `/monaco/vs` by
 `angular.json` and loaded on first use by
@@ -393,13 +420,14 @@ its web workers from `blob:` URLs, so any Content Security Policy must allow
 
 Request scripts run in a sandbox made of a `sandbox="allow-scripts"` iframe
 (never add `allow-same-origin`) whose own CSP is `default-src 'none'; script-src
-'unsafe-inline' blob:; worker-src blob:; connect-src 'none'`, containing a blob
-Worker that runs the script. That is the only place user script text is ever
-executed, and the app never uses `eval()` or `Function()` for it (see
-`core/scripting/script-sandbox.ts`). The setup was verified in Chromium; a
-canary check refuses scripts if a browser does not enforce the policy. Re-check
-it whenever a CSP is added to the app, since the app's policy must still allow
-`srcdoc` iframes and blob workers.
+<url of public/script-sandbox-bootstrap.js>; worker-src blob:; connect-src
+'none'`, containing a blob Worker that runs the script. That is the only place
+user script text is ever executed, and the app never uses `eval()` or
+`Function()` for it (see `core/scripting/script-sandbox.ts`). It was verified in
+Chromium and Firefox; a canary check refuses scripts if a browser does not
+enforce the policy. The frame is a `srcdoc` iframe, so it also inherits the
+app's own CSP: keep `worker-src blob:` allowed there, and re-check the sandbox
+(the end-to-end suite does) whenever the app's policy changes.
 
 OAuth tokens live in memory only (`OAuthTokenStore`) and must never be written
 to IndexedDB, exports, history or logs.

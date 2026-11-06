@@ -111,7 +111,7 @@ export interface RunDialogData extends RunScope {
     .summary {
       margin: 8px 0;
       font-weight: 600;
-      color: #2e7d32;
+      color: var(--app-success);
     }
     .summary.bad {
       color: var(--mat-sys-error);
@@ -133,7 +133,7 @@ export interface RunDialogData extends RunScope {
     }
     .mark {
       width: 16px;
-      color: #2e7d32;
+      color: var(--app-success);
     }
     .mark.fail,
     .fail {

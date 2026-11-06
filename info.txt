@@ -225,7 +225,41 @@ The browser tests aren't in the project. They live in my scratchpad, so the end-
 
 
 
+Release Readiness is done except one item: cross-browser verification stays unchecked, because I couldn't run Safari. The end-to-end suite passes all 49 tests on both Chromium and Firefox. The 360 unit tests, lint, type checks and production build pass too. Nothing is committed (the user committed milestones 1–6 themselves).
 
+Item	Status
+Integration tests for the PRD acceptance criteria	Done, npm run e2e
+Accessibility review (WCAG 2.2 AA)	Done, but no screen-reader testing
+Cross-browser verification	Not ticked
+Console error check and production build verification	Done
+Documentation updated	Done
+What I added
+
+Playwright e2e suite, which builds and serves the production app and runs against a mock API. The mock API includes an OAuth provider that verifies PKCE for real.
+A fixture that fails any test on an unexpected console error or warning, which is how the console check runs on every workflow.
+Accessibility tests: automated WCAG 2.2 AA scans of every screen in light and dark themes, plus keyboard tests.
+A strict CSP in index.html: script-src 'self', no unsafe-eval, and Monaco works under it. The script sandbox needed a small redesign for this. A srcdoc iframe inherits its parent's CSP, so the sandbox's inline bootstrap moved to public/script-sandbox-bootstrap.js instead of loosening the policy.
+Docs: README sections on testing, deploying, accessibility and browser support, and a rewrite of the stale "Future Possibilities" list. AGENTS.md now records the Playwright decision.
+Real bugs the audit found, now fixed
+
+The request tab strip wasn't a valid ARIA tab list. The + and × buttons are now outside or inside the tabs correctly, and Delete closes the focused tab.
+Sidebar and history buttons announced different text than they showed, which breaks voice control.
+The pass/fail summary color was unreadable on the dark theme.
+What I could not verify
+
+Safari/WebKit can't launch here: it needs system libraries that require root. The README says so, with a per-browser status table.
+Edge isn't installed. It's Chromium-based, but not tested separately.
+Screen readers were never tried. Automated tools find only part of the problems.
+Notes
+
+Two Firefox quirks only affect the tests, not the app. Firefox crashes while axe scans the Tests tab with a URL typed, so the audit switches tabs first. It also logs a harmless warning from the HTML preview frame.
+One flaky keyboard test turned out to be Material restoring focus to the + button after a menu closes. The test now waits for that, and the keyboard suite passed three runs in a row afterwards.
+I added @types/node as a dev dependency so the e2e code can be type-checked.
+
+
+
+
+====================================
 
 
 

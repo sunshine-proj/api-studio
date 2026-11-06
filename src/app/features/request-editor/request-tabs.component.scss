@@ -7,24 +7,10 @@
 
 .strip {
   display: flex;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   align-items: stretch;
   min-width: 0;
   overflow-x: auto;
-}
-
-.tab {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  max-width: 240px;
-  border-right: 1px solid var(--mat-sys-outline-variant);
-  border-bottom: 2px solid transparent;
-
-  &.active {
-    background: var(--mat-sys-surface);
-    border-bottom-color: var(--mat-sys-primary);
-  }
 }
 
 button {
@@ -42,12 +28,19 @@ button {
 
 [role='tab'] {
   display: flex;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   align-items: center;
   gap: 6px;
-  min-width: 0;
-  height: 34px;
+  max-width: 240px;
+  height: 36px;
   padding: 0 4px 0 10px;
+  border-right: 1px solid var(--mat-sys-outline-variant);
+  border-bottom: 2px solid transparent;
+
+  &.active {
+    background: var(--mat-sys-surface);
+    border-bottom-color: var(--mat-sys-primary);
+  }
 }
 
 .method {
@@ -69,7 +62,20 @@ button {
   font-size: 10px;
 }
 
-.close,
+.close {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+
+  &:hover {
+    background: var(--mat-sys-surface-container-highest);
+  }
+}
+
 .add,
 .more {
   flex: 0 0 auto;
@@ -99,4 +105,8 @@ button {
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+.more {
+  margin-left: auto;
 }

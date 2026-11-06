@@ -13,38 +13,17 @@ export abstract class ScriptSandbox {
   abstract run(job: ScriptJob): Promise<ScriptOutcome>;
 }
 
+/** File name of the page script that runs inside the sandbox frame (served from `public/`). */
+const BOOTSTRAP_FILE = 'script-sandbox-bootstrap.js';
+
 /**
  * What the sandbox's own page is allowed to do. Everything not listed is
  * forbidden, in particular every kind of network request (`connect-src`).
+ * Its only script is the bootstrap file, so there are no inline scripts.
  */
-const SANDBOX_CSP = "default-src 'none'; script-src 'unsafe-inline' blob:; worker-src blob:; connect-src 'none'";
-
-/**
- * The page inside the sandbox iframe. It only starts a worker from the source
- * it is given and forwards the worker's messages to the app.
- */
-const BOOTSTRAP = `
-window.addEventListener('message', (event) => {
-  const data = event.data || {};
-  let source = data.code;
-  if (data.kind === 'canary') {
-    // A blob URL needs no network, so this fetch succeeds only if the sandbox's policy is NOT being enforced.
-    const target = URL.createObjectURL(new Blob(['x']));
-    source = "fetch(" + JSON.stringify(target) + ", { mode: 'no-cors' }).then(() => postMessage({ canary: 'open' }), () => postMessage({ canary: 'blocked' }));";
-  }
-  if (typeof source !== 'string') return;
-  let worker;
-  try {
-    worker = new Worker(URL.createObjectURL(new Blob([source], { type: 'text/javascript' })));
-  } catch (error) {
-    parent.postMessage({ kind: 'failed', message: String(error) }, '*');
-    return;
-  }
-  worker.onmessage = (e) => parent.postMessage({ kind: 'message', data: e.data }, '*');
-  worker.onerror = (e) => { e.preventDefault(); parent.postMessage({ kind: 'failed', message: e.message || 'The script could not be run.' }, '*'); };
-});
-parent.postMessage({ kind: 'ready' }, '*');
-`;
+function sandboxPolicy(bootstrapUrl: string): string {
+  return `default-src 'none'; script-src ${bootstrapUrl}; worker-src blob:; connect-src 'none'`;
+}
 
 type Reply = { readonly kind: 'ready' } | { readonly kind: 'message'; readonly data: unknown } | { readonly kind: 'failed'; readonly message: string };
 
@@ -57,7 +36,7 @@ type SandboxHealth = { readonly safe: true } | { readonly safe: false; readonly 
  *     └─ iframe  sandbox="allow-scripts"   (no allow-same-origin: it gets an opaque
  *        │                                  origin, so it cannot touch the app's
  *        │                                  storage, DOM or cookies)
- *        │        + a CSP that forbids all network access
+ *        │        + a CSP that forbids all network access and inline scripts
  *        └─ Worker (from a blob)           the user's script. A worker has no DOM
  *                                          and cannot navigate or open windows, and it
  *                                          inherits the iframe's CSP, so it cannot
@@ -118,7 +97,9 @@ export class BrowserScriptSandbox extends ScriptSandbox {
       frame.setAttribute('aria-hidden', 'true');
       frame.tabIndex = -1;
       frame.style.display = 'none';
-      frame.srcdoc = `<meta http-equiv="Content-Security-Policy" content="${SANDBOX_CSP}"><script>${BOOTSTRAP}</script>`;
+      // Absolute, because the frame has an opaque origin and a srcdoc document has no URL of its own to resolve against.
+      const bootstrapUrl = new URL(BOOTSTRAP_FILE, this.document.baseURI).href;
+      frame.srcdoc = `<meta http-equiv="Content-Security-Policy" content="${sandboxPolicy(bootstrapUrl)}"><script src="${bootstrapUrl}"></script>`;
 
       const view = this.document.defaultView;
       const finish = (result: Reply | 'timeout'): void => {

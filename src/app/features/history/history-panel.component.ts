@@ -44,7 +44,6 @@ const ERROR_LABELS: Readonly<Record<ExecutionErrorKind, string>> = {
             <button
               type="button"
               class="entry"
-              [attr.aria-label]="'Open ' + entry.method + ' ' + entry.url"
               (click)="open(entry)"
             >
               <span class="line">
@@ -142,11 +141,11 @@ const ERROR_LABELS: Readonly<Record<ExecutionErrorKind, string>> = {
       font-weight: 600;
     }
     .result.ok {
-      color: #2e7d32;
+      color: var(--app-success);
     }
     .result.client-error,
     .result.redirect {
-      color: #ef6c00;
+      color: var(--app-warning);
     }
     .result.server-error,
     .result.failed {

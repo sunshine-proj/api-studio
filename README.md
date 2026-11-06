@@ -273,6 +273,88 @@ Open:
 http://localhost:4200
 ```
 
+### Testing
+
+```bash
+npm test -- --watch=false   # unit tests (Vitest, jsdom, fake-indexeddb)
+npm run lint                # lint, including the core / shared / features boundaries
+npm run build               # production build (also type-checks Angular templates)
+npm run e2e                 # end-to-end tests (Playwright) against the production build
+```
+
+The end-to-end tests build the app, serve it the way a static host would, and
+run against a small mock API (`e2e/support/mock-api.mjs`: JSON, uploads, an
+OAuth provider that really verifies PKCE, GraphQL, Server-Sent Events, a
+WebSocket echo). They cover the acceptance criteria of the PRD, every
+Milestone 6 feature, keyboard use, and automated WCAG 2.2 AA checks (axe-core)
+in the light and the dark theme. **Every test fails if the page logs an
+unexpected console error or warning.**
+
+Chromium is installed by `npx playwright install chromium`. Other engines are
+opt-in: `npx playwright install firefox webkit`, then
+`npm run e2e -- --project=firefox`. WebKit also needs system libraries
+(`sudo npx playwright install-deps`).
+
+### Deploying
+
+API Studio is a static site: serve the contents of `dist/api-studio/browser`
+from any static host. Requirements:
+
+- **Fallback to `index.html`** for unknown paths. The OAuth sign-in returns to
+  `/oauth/callback`, which only exists inside the app.
+- **Serve it over https.** An https page cannot call insecure `http://` APIs
+  (mixed content), and OAuth endpoints must be https (except localhost).
+- **Content Security Policy.** `index.html` carries a policy in a meta tag:
+  scripts only from the app itself and no `unsafe-eval` (Monaco works without
+  it); `connect-src` is open, because an API client must be able to call any
+  origin; Monaco's workers need `blob:`. A meta tag cannot set
+  `frame-ancestors`, so also send these headers from the host:
+
+  ```text
+  Content-Security-Policy: <the same policy as the meta tag>; frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  ```
+
+  The script sandbox and the HTML preview are `srcdoc` iframes that add their
+  own, stricter policies; if you tighten the host policy, keep `frame-src` and
+  `worker-src blob:` working and re-run the end-to-end tests.
+- **The data never leaves the browser**: there is nothing to configure for a
+  database or backend.
+
+### Browser support and verification
+
+| Browser | Status |
+| --- | --- |
+| Chrome / Chromium | End-to-end suite passes (all tests). |
+| Firefox | End-to-end suite passes (all tests), including the script sandbox, OAuth popups, WebSockets and SSE. |
+| Edge | Built on Chromium and expected to behave like it, but **not tested separately**. |
+| Safari / WebKit | **Not verified.** The test environment could not run WebKit. Pay particular attention to the script sandbox (a Worker inside a sandboxed iframe, with a canary check that refuses scripts if the policy is not enforced), storage persistence and `BroadcastChannel` (OAuth). |
+
+### Accessibility
+
+Target: WCAG 2.2 AA. What was done and checked:
+
+- Automated: axe-core finds no violations on any screen in the light or dark
+  theme (workspace, every editor tab and body type, every response view,
+  sidebar, history, all dialogs, realtime tabs).
+- Keyboard: every control is reachable with Tab and focus is never trapped;
+  dialogs hold focus, close with Escape and return it to the opener; the
+  destructive confirm dialog focuses Cancel; tabs follow the tab-list pattern
+  (arrow keys, Home, End, Delete to close); menus and the sidebar tree work
+  from the keyboard.
+- Fixed during review: the request tabs were not a valid ARIA tab list;
+  sidebar and history buttons did not announce their visible text (voice
+  control); success and warning colours failed contrast on the dark theme.
+- Shortcuts: `Ctrl/Cmd+Enter` sends, `Ctrl/Cmd+S` saves, `Ctrl+Enter` sends a
+  WebSocket message, `Delete` closes the focused request tab.
+
+Not done, and worth knowing: it has **not been tried with a screen reader**
+(NVDA, JAWS, VoiceOver); automated tools find only part of the problems; the
+Monaco code editor and the sandboxed HTML preview are outside the automated
+scans (Monaco has its own accessibility support); the layout is desktop-first
+with a 1024 px minimum width and is not designed for phones.
+
 ## 7. Development Principles
 
 - Frontend-only architecture.
@@ -300,14 +382,13 @@ in [SKILLS.md](SKILLS.md)).
 - [x] Install Dexie.js and Monaco Editor.
 - [x] Load Monaco lazily (never in the initial bundle).
 - [x] Configure the unit test runner (Vitest via `ng test`).
-- [ ] Choose and configure the end-to-end tool (Playwright candidate).
+- [x] Choose and configure the end-to-end tool: Playwright (see Testing).
 - [x] Configure lint, including module boundary rules (core / shared / features).
 - [x] Define npm scripts: `start`, `build`, `test`, `lint`.
-- [ ] Define the `e2e` npm script (after the e2e tool is chosen).
-- [ ] Create the core / shared / features folder structure (created as each
-  feature is built, to avoid placeholder files; only `core/models` exists).
+- [x] Define the `e2e` npm script.
+- [x] Create the core / shared / features folder structure (created as each feature was built).
 - [x] Define the core data models (request, response, collection, environment, history, settings).
-- [ ] Plan the Content Security Policy, including Monaco workers.
+- [x] Plan the Content Security Policy, including Monaco workers (see Deploying).
 
 ### Milestone 1: Core HTTP Client
 
@@ -480,7 +561,7 @@ send (for example `ftp:`) are flagged.
   request, read the response, set variables and report tests (`test`, `assert`).
   **Imported scripts are always switched off** until you enable them in the
   Scripts tab, and Postman scripts are not imported at all. Verified in Chromium
-  only; Firefox and Safari have not been checked.
+  and Firefox by the end-to-end tests; Safari has not been checked.
 
 Native exports are now format version 2 (assertions, extractions, scripts,
 GraphQL bodies, OAuth settings); version 1 files still import, but older
@@ -489,26 +570,34 @@ place for assertions, extractions or scripts, so those are left out of it.
 
 ### Release Readiness
 
-- [ ] Integration tests for the major workflows in the PRD acceptance criteria.
-- [ ] Accessibility review (keyboard navigation, WCAG 2.2 AA).
-- [ ] Cross-browser verification (Chrome, Edge, Firefox, Safari).
-- [ ] Console error check and production build verification.
-- [ ] Documentation updated.
+- [x] Integration tests for the major workflows in the PRD acceptance criteria
+  (`npm run e2e`: create, execute and inspect requests; uploads and multipart;
+  collections and saved requests; data surviving a reload; export and import
+  into a fresh profile; browser limitations explained honestly) plus the
+  response viewer, history and every Milestone 6 feature.
+- [x] Accessibility review (keyboard navigation, WCAG 2.2 AA): see
+  Accessibility. Automated and keyboard checks pass; no screen-reader testing.
+- [ ] Cross-browser verification (Chrome, Edge, Firefox, Safari). Chromium and
+  Firefox are verified; Edge is not tested separately and **Safari / WebKit
+  could not be run** here (see Browser support and verification).
+- [x] Console error check and production build verification. The end-to-end
+  tests run against the production build and fail on any console error or
+  warning. The initial bundle is about 406 KB (112 KB gzipped) against a
+  500 KB gzipped target, Monaco loads lazily without `unsafe-eval`, and the
+  strict Content Security Policy is applied.
+- [x] Documentation updated.
 
 ## 9. Future Possibilities
 
-Potential future features:
+Everything listed in the milestones above exists. Ideas that are not built:
 
-- Postman collection compatibility.
-- OpenAPI/Swagger import.
-- GraphQL.
-- WebSocket testing.
-- Server-Sent Events.
-- Request scripting.
-- Automated assertions.
-- Request chaining.
-- API testing suites.
-- Optional backend execution service.
+- YAML support for OpenAPI import.
+- A GraphQL schema explorer (introspection).
+- Postman environment import and export; assertions and scripts in the Postman
+  format.
+- Collection runs with repeated iterations, data files and file uploads.
+- Reordering and moving folders; syncing between browsers by file.
+- Optional backend execution service (for example to avoid CORS).
 
 These features must not compromise the initial frontend-only architecture.
 

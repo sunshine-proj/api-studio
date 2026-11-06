@@ -20,6 +20,25 @@ html[data-theme='dark'] {
   color-scheme: dark;
 }
 
+// Status colours for text (success, warning), chosen to keep at least 4.5:1 contrast on the surface in each theme.
+// Material's palette has no success or warning roles, so they are defined here.
+:root {
+  --app-success: #1b5e20;
+  --app-warning: #8a4b00;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --app-success: #81c784;
+    --app-warning: #ffb74d;
+  }
+}
+
+html[data-theme='dark'] {
+  --app-success: #81c784;
+  --app-warning: #ffb74d;
+}
+
 html,
 body {
   height: 100%;

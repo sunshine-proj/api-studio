@@ -226,10 +226,10 @@ function defaultAuth(type: AuthType): AuthConfig {
       font-weight: 600;
     }
     .status.ok {
-      color: #2e7d32;
+      color: var(--app-success);
     }
     .status.warn {
-      color: #ef6c00;
+      color: var(--app-warning);
     }
     .actions {
       display: flex;
