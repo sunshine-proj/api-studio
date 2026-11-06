@@ -5,8 +5,15 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatMenu, MatMenuContent, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { firstValueFrom } from 'rxjs';
 import { CollectionStore } from '@core/services/collection-store.service';
+import { RequestSession } from '@core/services/request-session.service';
+import { SavedRequestStore } from '@core/services/saved-request-store.service';
 import { folderSubtreeIds } from '@core/utils/collection-tree.util';
 import { ConfirmDialogComponent, ConfirmDialogData } from '@shared/components/dialogs/confirm-dialog.component';
+import {
+  LocationDialogComponent,
+  LocationDialogData,
+  LocationDialogResult,
+} from '@shared/components/dialogs/location-dialog.component';
 import { NameDialogComponent, NameDialogData } from '@shared/components/dialogs/name-dialog.component';
 
 type NodeKind = 'collection' | 'folder';
@@ -20,6 +27,8 @@ type NodeKind = 'collection' | 'folder';
 })
 export class CollectionsSidebarComponent {
   protected readonly store = inject(CollectionStore);
+  protected readonly saved = inject(SavedRequestStore);
+  protected readonly session = inject(RequestSession);
   private readonly dialog = inject(MatDialog);
 
   /** Which collections and folders are open. Purely view state, so it is not persisted. */
@@ -64,11 +73,18 @@ export class CollectionsSidebarComponent {
 
   protected async remove(kind: NodeKind, id: string, name: string): Promise<void> {
     const folders = this.store.folders();
-    const count =
+    const folderIds =
       kind === 'collection'
-        ? folders.filter((folder) => folder.collectionId === id).length
-        : folderSubtreeIds(folders, id).length - 1;
-    const contents = count === 0 ? '' : ` and the ${count} folder${count === 1 ? '' : 's'} inside it`;
+        ? folders.filter((folder) => folder.collectionId === id).map((folder) => folder.id)
+        : folderSubtreeIds(folders, id).filter((folderId) => folderId !== id);
+    const requestCount = this.saved
+      .requests()
+      .filter((r) => (kind === 'collection' ? r.collectionId === id : r.folderId === id || (r.folderId !== null && folderIds.includes(r.folderId)))).length;
+    const inside = [
+      folderIds.length > 0 ? `${folderIds.length} folder${folderIds.length === 1 ? '' : 's'}` : '',
+      requestCount > 0 ? `${requestCount} request${requestCount === 1 ? '' : 's'}` : '',
+    ].filter((part) => part !== '');
+    const contents = inside.length === 0 ? '' : ` and the ${inside.join(' and ')} inside it`;
     const confirmed = await this.confirm({
       title: kind === 'collection' ? 'Delete collection?' : 'Delete folder?',
       message: `"${name}"${contents} will be permanently deleted. This cannot be undone.`,
@@ -76,6 +92,48 @@ export class CollectionsSidebarComponent {
     });
     if (!confirmed) return;
     await (kind === 'collection' ? this.store.deleteCollection(id) : this.store.deleteFolder(id));
+  }
+
+  // --- Saved requests ---
+
+  protected async renameRequest(id: string, current: string): Promise<void> {
+    const name = await this.askName({ title: 'Rename request', label: 'Name', confirmLabel: 'Rename', value: current });
+    if (name !== undefined) await this.saved.rename(id, name);
+  }
+
+  protected async duplicateRequest(id: string): Promise<void> {
+    const copy = await this.saved.duplicate(id);
+    if (copy) this.expand(copy.collectionId, copy.folderId);
+  }
+
+  protected async moveRequest(id: string): Promise<void> {
+    const request = this.saved.find(id);
+    if (!request) return;
+    const result = await firstValueFrom(
+      this.dialog
+        .open<LocationDialogComponent, LocationDialogData, LocationDialogResult>(LocationDialogComponent, {
+          data: {
+            title: 'Move request',
+            confirmLabel: 'Move',
+            tree: this.saved.tree(),
+            collectionId: request.collectionId,
+            folderId: request.folderId,
+            allowNewCollection: false,
+          },
+        })
+        .afterClosed(),
+    );
+    if (!result?.collectionId) return;
+    if (await this.saved.move(id, result.collectionId, result.folderId)) this.expand(result.collectionId, result.folderId);
+  }
+
+  protected async removeRequest(id: string, name: string): Promise<void> {
+    const confirmed = await this.confirm({
+      title: 'Delete request?',
+      message: `"${name}" will be permanently deleted. This cannot be undone.`,
+      confirmLabel: 'Delete',
+    });
+    if (confirmed) await this.saved.remove(id);
   }
 
   private askName(data: NameDialogData): Promise<string | undefined> {

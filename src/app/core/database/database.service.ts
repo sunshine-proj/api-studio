@@ -1,6 +1,6 @@
 import { Injectable, InjectionToken, OnDestroy, inject } from '@angular/core';
 import Dexie, { EntityTable } from 'dexie';
-import { Collection, Folder, SavedRequest } from '../models';
+import { AppSettings, Collection, Environment, Folder, SavedRequest } from '../models';
 
 export const DATABASE_NAME = new InjectionToken<string>('DATABASE_NAME', {
   providedIn: 'root',
@@ -16,6 +16,8 @@ export class ApiStudioDatabase extends Dexie {
   readonly collections!: EntityTable<Collection, 'id'>;
   readonly folders!: EntityTable<Folder, 'id'>;
   readonly requests!: EntityTable<SavedRequest, 'id'>;
+  readonly environments!: EntityTable<Environment, 'id'>;
+  readonly settings!: EntityTable<AppSettings, 'id'>;
 
   constructor(name: string) {
     super(name);
@@ -26,6 +28,11 @@ export class ApiStudioDatabase extends Dexie {
     // Version 2 adds saved requests. No existing data has to change.
     this.version(2).stores({
       requests: 'id, collectionId, folderId',
+    });
+    // Version 3 adds environments and the settings record. No existing data has to change.
+    this.version(3).stores({
+      environments: 'id, createdAt',
+      settings: 'id',
     });
   }
 }

@@ -27,6 +27,10 @@ import { newId } from '@core/utils/id';
         }
       </div>
 
+      @if (store.error(); as message) {
+        <p class="note" role="alert">{{ message }}</p>
+      }
+
       @if (selected(); as env) {
         <label class="field">
           Name
@@ -124,12 +128,13 @@ export class EnvironmentDialogComponent {
   protected readonly selectedId = signal<string | null>(this.store.activeId() ?? this.store.environments()[0]?.id ?? null);
   protected readonly selected = computed(() => this.store.environments().find((e) => e.id === this.selectedId()) ?? null);
 
-  protected create(): void {
-    this.selectedId.set(this.store.create(`Environment ${this.store.environments().length + 1}`).id);
+  protected async create(): Promise<void> {
+    const environment = await this.store.create(`Environment ${this.store.environments().length + 1}`);
+    if (environment) this.selectedId.set(environment.id);
   }
 
-  protected remove(id: string): void {
-    this.store.remove(id);
+  protected async remove(id: string): Promise<void> {
+    await this.store.remove(id);
     this.selectedId.set(this.store.environments()[0]?.id ?? null);
   }
 

@@ -11,6 +11,8 @@ import {
   viewChild,
 } from '@angular/core';
 import type * as Monaco from 'monaco-editor';
+import { SettingsStore } from '@core/services/settings-store.service';
+import { resolveTheme } from '@core/utils/theme.util';
 import { loadMonaco } from './monaco-loader';
 
 export type EditorLanguage = 'json' | 'xml' | 'html' | 'plaintext' | 'javascript';
@@ -62,6 +64,7 @@ export class CodeEditorComponent {
   private editor: Monaco.editor.IStandaloneCodeEditor | undefined;
   private monacoApi: typeof Monaco | undefined;
   private destroyed = false;
+  private readonly settings = inject(SettingsStore);
 
   constructor() {
     inject(DestroyRef).onDestroy(() => {
@@ -79,7 +82,7 @@ export class CodeEditorComponent {
           language: this.language(),
           readOnly: this.readOnly(),
           ariaLabel: this.label(),
-          theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'vs-dark' : 'vs',
+          theme: this.monacoTheme(),
           automaticLayout: true,
           minimap: { enabled: false },
           scrollBeyondLastLine: false,
@@ -97,7 +100,9 @@ export class CodeEditorComponent {
       const value = this.value();
       const language = this.language();
       const readOnly = this.readOnly();
+      this.settings.theme();
       if (!this.editor || !this.monacoApi) return;
+      this.monacoApi.editor.setTheme(this.monacoTheme());
       this.editor.updateOptions({ readOnly });
       const model = this.editor.getModel();
       if (model) {
@@ -107,5 +112,10 @@ export class CodeEditorComponent {
         }
       }
     });
+  }
+
+  private monacoTheme(): 'vs' | 'vs-dark' {
+    const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    return resolveTheme(this.settings.theme(), systemDark) === 'dark' ? 'vs-dark' : 'vs';
   }
 }

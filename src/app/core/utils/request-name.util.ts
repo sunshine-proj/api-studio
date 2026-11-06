@@ -4,7 +4,7 @@ import { RequestDefinition } from '../models';
 export function suggestRequestName(definition: RequestDefinition): string {
   const url = definition.url.trim();
   if (url === '') return 'New request';
-  let label = url;
+  let label: string;
   try {
     // Placeholders such as {{baseUrl}} are not valid URLs, so only parse when it works.
     const parsed = new URL(url);

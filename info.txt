@@ -70,6 +70,47 @@ Next is Milestone 2: more body types, multipart and file uploads, upload progres
 
 
 
+Milestone 3 is implemented, and every item in the README checklist is ticked. The TypeScript check, the production build, lint and all 123 unit tests pass. Nothing is committed.
+
+I also ran the whole flow in Chromium with no console errors. It covered the first-run notice, creating a collection, saving a request, tabs with unsaved edits, duplicating a request, an environment, switching to dark theme, and a page reload.
+
+Already there before I started: the schema versions 1–2, collections and folders, and SavedRequestStore. The saved-request store wasn't wired into the UI, and the README had it unticked.
+
+What I added:
+
+Database: schema version 3 adds environments and settings tables.
+Settings and environments: theme, active environment and the rest of the app settings now survive a reload. Environments save to IndexedDB too.
+Saved requests: they appear in the sidebar and open in tabs. You can save, save as, duplicate, move, rename and delete them. Selected files are never stored, only their name, size and type.
+Tabs: each tab keeps its own edits, files and last response, and can send requests independently. A dot marks unsaved tabs, closing a dirty tab asks first, and a tab whose saved request is deleted becomes unsaved instead of breaking.
+Storage:
+A single banner shows storage load and save failures from every store.
+The first-run notice says data is stored unencrypted. Acknowledging it asks the browser to keep the data. I tie that to a click because Firefox shows a permission prompt for it.
+Tests: there are 53 new tests. They include migrations from v1 and v2 databases built the way the old releases built them, and persistence across a simulated reload.
+Things to know:
+
+Unsaved tabs aren't kept across a reload. They live in memory only, and the browser warns before you leave while any are dirty. I chose this over persisting them because AGENTS.md says not to store temporary UI state unnecessarily. If you want them restored, that's a small follow-up.
+Environment edits show immediately and save in the background, so fast typing doesn't drop characters. A failed save shows up in the banner. The other stores save first and then update the screen.
+I added src/test-setup.ts. Dexie reads indexedDB when it first loads, and the old per-spec import broke depending on which spec loaded first. It's wired in through setupFiles in angular.json and noted in AGENTS.md §17.
+I fixed a small existing lint error in request-name.util.ts so lint passes.
+Still not implemented: moving or reordering folders (already noted in the README).
+
+
+
+
+====================================
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

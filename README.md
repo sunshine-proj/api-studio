@@ -335,18 +335,28 @@ in [SKILLS.md](SKILLS.md)).
 
 ### Milestone 3: Local Persistence
 
-- [ ] Dedicated Dexie database service with schema versioning and migrations.
-  (Started: `DatabaseService` and schema version 1 with the collections and
-  folders tables exist. Remaining tables, an export/import-safe upgrade path and
-  migration tests come with the later steps.)
+- [x] Dedicated Dexie database service with schema versioning and migrations
+  (schema version 3: collections, folders, requests, environments, settings).
+  Each upgrade path is tested against a database built the way the older
+  release created it.
 - [x] Collections and folders (create, rename, delete, nested folders; persisted
   in IndexedDB). Moving and reordering folders is not implemented yet.
-- [ ] Saved requests (save, duplicate, move).
-- [ ] Environments (create, rename, delete, switch).
-- [ ] Application settings and theme persistence.
-- [ ] Multiple request tabs with preserved unsaved changes.
-- [ ] Persistent storage request and storage failure handling.
-- [ ] IndexedDB persistence and migration tests.
+- [x] Saved requests (save, save as, duplicate, move, rename, delete). Selected
+  files are never stored, only their name, size and type.
+- [x] Environments (create, rename, delete, switch). The active environment is
+  remembered.
+- [x] Application settings and theme persistence (light, dark, system).
+- [x] Multiple request tabs with preserved unsaved changes (switching, closing,
+  duplicating; a dot marks unsaved tabs; closing asks first). Unsaved tabs live
+  in memory only, so reloading the page discards them; the browser warns before
+  leaving while any exist.
+- [x] Persistent storage request and storage failure handling. Failed loads and
+  saves show a banner; the first-run notice says data is stored unencrypted;
+  the browser is asked to keep the data when the notice is acknowledged.
+- [x] IndexedDB persistence and migration tests.
+
+Keyboard shortcuts: `Ctrl/Cmd+Enter` sends, `Ctrl/Cmd+S` saves the active
+request, arrow keys / `Home` / `End` move between request tabs.
 
 ### Milestone 4: Advanced Response Handling
 

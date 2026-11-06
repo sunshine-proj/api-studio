@@ -10,7 +10,12 @@ export interface AppSettings extends PersistedEntity {
   readonly maxRenderedResponseBytes: number;
   readonly historyLimit: number;
   readonly activeEnvironmentId: string | null;
+  /** True once the user has acknowledged the notice that data is stored unencrypted in the browser. */
+  readonly storageNoticeAcknowledged: boolean;
 }
+
+/** Id of the single settings record. */
+export const SETTINGS_ID = 'app';
 
 export const DEFAULT_SETTINGS_VALUES = {
   theme: 'system',
@@ -18,4 +23,5 @@ export const DEFAULT_SETTINGS_VALUES = {
   maxRenderedResponseBytes: 10 * 1024 * 1024,
   historyLimit: 100,
   activeEnvironmentId: null,
+  storageNoticeAcknowledged: false,
 } as const satisfies Omit<AppSettings, keyof PersistedEntity>;

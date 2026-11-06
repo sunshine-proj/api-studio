@@ -27,8 +27,28 @@ ul {
   list-style: none;
 }
 
-.folders {
+.folders,
+.requests {
   padding-left: 14px;
+}
+
+.request {
+  &.current {
+    background: var(--mat-sys-secondary-container);
+    color: var(--mat-sys-on-secondary-container);
+  }
+
+  .toggle {
+    padding-left: 18px;
+  }
+}
+
+.method {
+  flex: 0 0 auto;
+  min-width: 34px;
+  color: var(--mat-sys-primary);
+  font: var(--mat-sys-label-small);
+  font-weight: 600;
 }
 
 .row {
@@ -97,23 +117,4 @@ ul {
 .nested {
   margin-left: 26px;
   font: var(--mat-sys-body-small);
-}
-
-.error {
-  margin: 4px 0 8px;
-  padding: 8px;
-  color: var(--mat-sys-on-error-container);
-  background: var(--mat-sys-error-container);
-  border-radius: 6px;
-  font: var(--mat-sys-body-small);
-
-  button {
-    margin-top: 4px;
-    color: inherit;
-    font: inherit;
-    text-decoration: underline;
-    background: transparent;
-    border: 0;
-    cursor: pointer;
-  }
 }

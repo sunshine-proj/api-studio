@@ -10,6 +10,7 @@ import { formatBytes } from '@core/utils/response.util';
 import { KeyValueEditorComponent } from '@shared/components/key-value-editor/key-value-editor.component';
 import { AuthEditorComponent } from './auth-editor.component';
 import { BodyEditorComponent } from './body-editor.component';
+import { RequestSaveFlow } from './request-save.service';
 
 const STANDARD_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'] as const;
 
@@ -33,17 +34,24 @@ const STANDARD_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTI
   host: {
     '(keydown.control.enter)': 'send()',
     '(keydown.meta.enter)': 'send()',
+    '(keydown.control.s)': 'saveFromKeyboard($event)',
+    '(keydown.meta.s)': 'saveFromKeyboard($event)',
   },
   templateUrl: './request-editor.component.html',
   styleUrl: './request-editor.component.scss',
 })
 export class RequestEditorComponent {
   protected readonly session = inject(RequestSession);
+  private readonly flow = inject(RequestSaveFlow);
   protected readonly methods = STANDARD_METHODS;
   protected readonly urlPlaceholder = 'https://api.example.com/users  or  {{baseUrl}}/users';
 
   protected readonly draft = this.session.draft;
   protected readonly sending = computed(() => this.session.state().status === 'sending');
+  protected readonly canSave = computed(() => {
+    const tab = this.session.activeTab();
+    return !tab.isSaved() || tab.dirty();
+  });
   protected readonly enabledParams = computed(() => this.draft().params.filter((p) => p.enabled).length);
   protected readonly enabledHeaders = computed(() => this.draft().headers.filter((h) => h.enabled).length);
   protected readonly upload = computed(() => {
@@ -64,5 +72,15 @@ export class RequestEditorComponent {
 
   protected send(): void {
     void this.session.send();
+  }
+
+  protected save(): void {
+    void this.flow.save(this.session.activeTab());
+  }
+
+  /** Ctrl/Cmd+S saves the request instead of opening the browser's "save page" dialog. */
+  protected saveFromKeyboard(event: Event): void {
+    event.preventDefault();
+    this.save();
   }
 }

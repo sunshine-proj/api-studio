@@ -1,230 +1,205 @@
-import { Injectable, inject, signal } from '@angular/core';
-import {
-  AuthConfig,
-  ExecutionResult,
-  FileReference,
-  FormDataField,
-  KeyValue,
-  RequestBody,
-  RequestDefinition,
-  TextBodyLanguage,
-  UploadProgress,
-} from '../models';
-import { newId } from '../utils/id';
-import { createEmptyRequest } from '../utils/request-factory';
-import { BINARY_FILE_KEY } from '../utils/request-preparation.util';
-import { buildUrl, paramsFromUrl } from '../utils/url.util';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { AuthConfig, FormDataField, KeyValue, RequestDefinition } from '../models';
+import { CollectionStore } from './collection-store.service';
 import { EnvironmentStore } from './environment-store.service';
 import { RequestExecutionService } from './request-execution.service';
+import { BodyKind, ExecutionState, RequestTab, fileReference } from './request-tab';
+import { SavedRequestStore } from './saved-request-store.service';
 
-export type ExecutionState =
-  | { readonly status: 'idle' }
-  | { readonly status: 'sending' }
-  | { readonly status: 'done'; readonly result: ExecutionResult };
+export { fileReference };
+export type { BodyKind, ExecutionState };
 
-/** Body choices offered in the editor. */
-export type BodyKind = 'none' | TextBodyLanguage | 'urlencoded' | 'multipart' | 'binary';
+export type SaveOutcome = 'saved' | 'needs-location' | 'failed';
 
-export function fileReference(file: File): FileReference {
-  return { name: file.name, size: file.size, mimeType: file.type };
+export interface SaveLocation {
+  readonly name: string;
+  /** Null when `newCollectionName` names a collection to create for it. */
+  readonly collectionId: string | null;
+  readonly newCollectionName?: string | null;
+  readonly folderId: string | null;
 }
 
 /**
- * State of the request being edited and its latest execution. Holds the
- * business logic so components only bind to signals and forward events.
- * Becomes per-tab state when multiple tabs arrive (Milestone 3).
+ * The open request tabs. The editing methods act on the active tab, so the
+ * editor components bind to one object whichever tab is showing. Switching tabs
+ * never discards a tab's unsaved edits, selected files or last response.
  */
 @Injectable({ providedIn: 'root' })
 export class RequestSession {
   private readonly executor = inject(RequestExecutionService);
   private readonly environments = inject(EnvironmentStore);
-  private controller: AbortController | null = null;
+  private readonly store = inject(SavedRequestStore);
+  private readonly collections = inject(CollectionStore);
 
-  /** Content of body types that are switched off, so switching back restores it. */
-  private memory = {
-    text: '',
-    urlencoded: [] as readonly KeyValue[],
-    multipart: [] as readonly FormDataField[],
-    binary: undefined as FileReference | undefined,
-  };
+  private readonly tabsState = signal<readonly RequestTab[]>([this.createTab()]);
+  private readonly activeIdState = signal(this.tabsState()[0].id);
 
-  readonly draft = signal<RequestDefinition>(createEmptyRequest());
-  readonly state = signal<ExecutionState>({ status: 'idle' });
-  /**
-   * Selected files by multipart row id (or the binary key). They live in memory
-   * only: the browser does not let the app reopen a file later, so saved
-   * requests keep just the file name, size and type.
-   */
-  readonly files = signal<ReadonlyMap<string, File>>(new Map());
-  readonly uploadProgress = signal<UploadProgress | null>(null);
+  readonly tabs = this.tabsState.asReadonly();
+  readonly activeId = this.activeIdState.asReadonly();
+  readonly activeTab = computed(() => this.tabs().find((tab) => tab.id === this.activeId()) ?? this.tabs()[0]);
+  readonly hasUnsavedChanges = computed(() => this.tabs().some((tab) => tab.dirty()));
 
-  setMethod(method: string): void {
-    this.draft.update((draft) => ({ ...draft, method }));
+  // The active tab's state, for the editor and response panels.
+  readonly draft = computed(() => this.activeTab().draft());
+  readonly state = computed<ExecutionState>(() => this.activeTab().state());
+  readonly files = computed(() => this.activeTab().files());
+  readonly uploadProgress = computed(() => this.activeTab().uploadProgress());
+
+  // --- Tabs ---
+
+  /** Opens an empty request in a new tab. */
+  newTab(): RequestTab {
+    return this.addTab(this.createTab());
   }
 
-  /** Edits the URL text and keeps the parameter table in sync with its query. */
-  setUrl(url: string): void {
-    this.draft.update((draft) => ({ ...draft, url, params: paramsFromUrl(url, draft.params) }));
+  activate(id: string): void {
+    if (this.tabs().some((tab) => tab.id === id)) this.activeIdState.set(id);
   }
 
-  /** Edits the parameter table and rewrites the URL query to match. */
-  setParams(params: readonly KeyValue[]): void {
-    this.draft.update((draft) => ({ ...draft, params, url: buildUrl(draft.url, params) }));
+  /** Shows a saved request, reusing its tab when it is already open. */
+  openSaved(id: string): void {
+    const open = this.tabs().find((tab) => tab.savedRequestId() === id);
+    if (open) return this.activate(open.id);
+    const saved = this.store.find(id);
+    if (!saved) return;
+    const tab = this.createTab({ draft: saved.definition, savedRequestId: id });
+    const current = this.activeTab();
+    // A pristine, never-used tab is replaced instead of piling up beside the new one.
+    const replace = current.savedRequestId() === null && !current.dirty() && current.state().status === 'idle';
+    this.addTab(tab, replace ? current.id : undefined);
   }
 
-  setHeaders(headers: readonly KeyValue[]): void {
-    this.draft.update((draft) => ({ ...draft, headers }));
+  /** Opens an unsaved copy of a tab right after it. Selected files are carried over. */
+  duplicateTab(id: string): void {
+    const source = this.tabs().find((tab) => tab.id === id);
+    if (!source) return;
+    this.addTab(this.createTab({ draft: source.draft(), files: source.files() }), undefined, source.id);
   }
 
-  setAuth(auth: AuthConfig): void {
-    this.draft.update((draft) => ({ ...draft, auth }));
-  }
-
-  // --- Body ---
-
-  /** Switches the body type, remembering what the previous type contained. */
-  setBodyKind(kind: BodyKind): void {
-    this.remember(this.draft().body);
-    switch (kind) {
-      case 'none':
-        return this.setBody({ type: 'none' });
-      case 'urlencoded':
-        return this.setBody({ type: 'urlencoded', fields: this.memory.urlencoded });
-      case 'multipart':
-        return this.setBody({ type: 'multipart', fields: this.memory.multipart });
-      case 'binary':
-        return this.setBody({ type: 'binary', file: this.memory.binary });
-      default:
-        return this.setBody({ type: 'text', language: kind, content: this.memory.text });
-    }
-  }
-
-  setBodyText(content: string): void {
-    const body = this.draft().body;
-    if (body.type === 'text') {
-      this.setBody({ ...body, content });
-    }
-  }
-
-  setUrlencoded(fields: readonly KeyValue[]): void {
-    this.setBody({ type: 'urlencoded', fields });
-  }
-
-  setMultipart(fields: readonly FormDataField[]): void {
-    this.setBody({ type: 'multipart', fields });
-    this.dropUnusedFiles(fields);
-  }
-
-  addMultipartText(): void {
-    this.setMultipart([...this.multipartFields(), this.newField('text')]);
-  }
-
-  /** Adds one file row per file. Several rows may share a field name. */
-  addMultipartFiles(files: readonly File[], key = 'file'): void {
-    const rows = files.map((file): FormDataField => ({ ...this.newField('file'), key, file: fileReference(file) }));
-    this.files.update((map) => new Map([...map, ...rows.map((row, i): [string, File] => [row.id, files[i]])]));
-    this.setMultipart([...this.multipartFields(), ...rows]);
-  }
-
-  updateMultipartField(id: string, changes: Partial<Pick<FormDataField, 'key' | 'value' | 'enabled' | 'kind'>>): void {
-    this.setMultipart(this.multipartFields().map((field) => (field.id === id ? { ...field, ...changes } : field)));
-  }
-
-  removeMultipartField(id: string): void {
-    this.setMultipart(this.multipartFields().filter((field) => field.id !== id));
-  }
-
-  /** Replaces the file of an existing row. */
-  attachMultipartFile(id: string, file: File): void {
-    this.files.update((map) => new Map(map).set(id, file));
-    this.setMultipart(this.multipartFields().map((f) => (f.id === id ? { ...f, kind: 'file', file: fileReference(file) } : f)));
-  }
-
-  setBinaryFile(file: File | null): void {
-    this.files.update((map) => {
-      const next = new Map(map);
-      if (file) next.set(BINARY_FILE_KEY, file);
-      else next.delete(BINARY_FILE_KEY);
-      return next;
-    });
-    this.setBody({ type: 'binary', file: file ? fileReference(file) : undefined });
-  }
-
-  // --- Execution ---
-
-  async send(): Promise<void> {
-    if (this.state().status === 'sending') {
+  /** Closes a tab, cancelling its request. The last tab is replaced by an empty one. */
+  closeTab(id: string): void {
+    const tabs = this.tabs();
+    const index = tabs.findIndex((tab) => tab.id === id);
+    if (index < 0) return;
+    tabs[index].dispose();
+    const remaining = tabs.filter((tab) => tab.id !== id);
+    if (remaining.length === 0) {
+      const fresh = this.createTab();
+      this.tabsState.set([fresh]);
+      this.activeIdState.set(fresh.id);
       return;
     }
-    const controller = new AbortController();
-    this.controller = controller;
-    this.uploadProgress.set(null);
-    this.state.set({ status: 'sending' });
-
-    const result = await this.executor.execute(this.draft(), {
-      variables: this.environments.variables(),
-      files: this.files(),
-      signal: controller.signal,
-      onUploadProgress: (progress) => {
-        if (this.controller === controller) this.uploadProgress.set(progress);
-      },
-    });
-
-    if (this.controller === controller) {
-      this.controller = null;
-      this.uploadProgress.set(null);
-      this.state.set({ status: 'done', result });
+    this.tabsState.set(remaining);
+    if (this.activeId() === id) {
+      this.activeIdState.set(remaining[Math.min(index, remaining.length - 1)].id);
     }
   }
 
-  cancel(): void {
-    this.controller?.abort();
+  // --- Saving ---
+
+  /** Stores the tab's changes. An unsaved tab needs a location first (see `saveAs`). */
+  async save(id: string): Promise<SaveOutcome> {
+    const tab = this.tabs().find((t) => t.id === id);
+    if (!tab) return 'failed';
+    const savedId = tab.savedRequestId();
+    if (savedId === null || !tab.isSaved()) return 'needs-location';
+    return (await this.store.updateDefinition(savedId, tab.draft())) ? 'saved' : 'failed';
   }
 
+  /** Saves the tab as a new request in the given place (creating its collection if asked), then links the tab to it. */
+  async saveAs(id: string, location: SaveLocation): Promise<boolean> {
+    const tab = this.tabs().find((t) => t.id === id);
+    if (!tab) return false;
+    let collectionId = location.collectionId;
+    if (collectionId === null) {
+      const collection = await this.collections.createCollection(location.newCollectionName ?? '');
+      if (!collection) return false;
+      collectionId = collection.id;
+    }
+    const created = await this.store.create(location.name, collectionId, location.folderId, tab.draft());
+    if (!created) return false;
+    tab.savedRequestId.set(created.id);
+    return true;
+  }
+
+  // --- Editing the active tab ---
+
+  setMethod(method: string): void {
+    this.activeTab().setMethod(method);
+  }
+  setUrl(url: string): void {
+    this.activeTab().setUrl(url);
+  }
+  setParams(params: readonly KeyValue[]): void {
+    this.activeTab().setParams(params);
+  }
+  setHeaders(headers: readonly KeyValue[]): void {
+    this.activeTab().setHeaders(headers);
+  }
+  setAuth(auth: AuthConfig): void {
+    this.activeTab().setAuth(auth);
+  }
+  setBodyKind(kind: BodyKind): void {
+    this.activeTab().setBodyKind(kind);
+  }
+  setBodyText(content: string): void {
+    this.activeTab().setBodyText(content);
+  }
+  setUrlencoded(fields: readonly KeyValue[]): void {
+    this.activeTab().setUrlencoded(fields);
+  }
+  setMultipart(fields: readonly FormDataField[]): void {
+    this.activeTab().setMultipart(fields);
+  }
+  addMultipartText(): void {
+    this.activeTab().addMultipartText();
+  }
+  addMultipartFiles(files: readonly File[], key?: string): void {
+    this.activeTab().addMultipartFiles(files, key);
+  }
+  updateMultipartField(id: string, changes: Partial<Pick<FormDataField, 'key' | 'value' | 'enabled' | 'kind'>>): void {
+    this.activeTab().updateMultipartField(id, changes);
+  }
+  removeMultipartField(id: string): void {
+    this.activeTab().removeMultipartField(id);
+  }
+  attachMultipartFile(id: string, file: File): void {
+    this.activeTab().attachMultipartFile(id, file);
+  }
+  setBinaryFile(file: File | null): void {
+    this.activeTab().setBinaryFile(file);
+  }
+  send(): Promise<void> {
+    return this.activeTab().send();
+  }
+  cancel(): void {
+    this.activeTab().cancel();
+  }
   clearResult(): void {
-    this.state.set({ status: 'idle' });
+    this.activeTab().clearResult();
   }
 
   // --- Internals ---
 
-  private setBody(body: RequestBody): void {
-    this.draft.update((draft) => ({ ...draft, body }));
+  private createTab(init: { draft?: RequestDefinition; savedRequestId?: string; files?: ReadonlyMap<string, File> } = {}): RequestTab {
+    return new RequestTab(
+      {
+        executor: this.executor,
+        variables: () => this.environments.variables(),
+        lookup: (id) => this.store.find(id),
+      },
+      init,
+    );
   }
 
-  private multipartFields(): readonly FormDataField[] {
-    const body = this.draft().body;
-    return body.type === 'multipart' ? body.fields : [];
-  }
-
-  private newField(kind: 'text' | 'file'): FormDataField {
-    return { id: newId(), key: '', kind, value: '', enabled: true };
-  }
-
-  private remember(body: RequestBody): void {
-    switch (body.type) {
-      case 'text':
-        this.memory = { ...this.memory, text: body.content };
-        break;
-      case 'urlencoded':
-        this.memory = { ...this.memory, urlencoded: body.fields };
-        break;
-      case 'multipart':
-        this.memory = { ...this.memory, multipart: body.fields };
-        break;
-      case 'binary':
-        this.memory = { ...this.memory, binary: body.file };
-        break;
-      case 'none':
-        break;
-    }
-  }
-
-  /** Releases File objects of removed multipart rows (the binary file is kept separately). */
-  private dropUnusedFiles(fields: readonly FormDataField[]): void {
-    const keep = new Set<string>([BINARY_FILE_KEY, ...fields.map((f) => f.id), ...this.memory.multipart.map((f) => f.id)]);
-    const current = this.files();
-    if ([...current.keys()].some((id) => !keep.has(id))) {
-      this.files.set(new Map([...current].filter(([id]) => keep.has(id))));
-    }
+  /** Adds a tab (replacing one, or right after another) and makes it active. */
+  private addTab(tab: RequestTab, replaceId?: string, afterId?: string): RequestTab {
+    this.tabsState.update((tabs) => {
+      if (replaceId !== undefined) return tabs.map((t) => (t.id === replaceId ? tab : t));
+      const at = afterId === undefined ? tabs.length : tabs.findIndex((t) => t.id === afterId) + 1;
+      return [...tabs.slice(0, at), tab, ...tabs.slice(at)];
+    });
+    this.activeIdState.set(tab.id);
+    return tab;
   }
 }

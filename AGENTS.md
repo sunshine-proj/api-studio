@@ -366,6 +366,9 @@ Versions in use (scaffolded 2026-11-05):
 - Angular 22.2, Angular Material and CDK 22.2, TypeScript 6.0, RxJS 7.8.
 - Dexie 4, Monaco Editor 0.57.
 - Unit tests: Vitest via `ng test` (jsdom), with `fake-indexeddb` for Dexie.
+  `src/test-setup.ts` (angular.json `setupFiles`) installs `fake-indexeddb` before
+  any spec loads; Dexie reads the `indexedDB` global at import time, so do not
+  rely on importing it inside individual specs.
 - Lint: ESLint 10 with angular-eslint. Module boundary rules are configured in
   `eslint.config.js`; use the `@core/*`, `@shared/*`, `@features/*` aliases for
   cross-area imports.

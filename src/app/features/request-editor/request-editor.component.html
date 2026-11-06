@@ -27,6 +27,7 @@
   } @else {
     <button mat-flat-button type="submit">Send</button>
   }
+  <button mat-stroked-button type="button" [disabled]="!canSave()" (click)="save()" title="Save (Ctrl+S)">Save</button>
 </form>
 
 @if (sending()) {
