@@ -29,6 +29,11 @@ export class SavedRequestStore {
 
   readonly ready: Promise<void> = this.load();
 
+  /** Reads everything from the database again, e.g. after an import wrote to it directly. */
+  reload(): Promise<void> {
+    return this.load();
+  }
+
   constructor() {
     // The collection store deletes the database rows; here the in-memory copy follows.
     this.collections.removals$.pipe(takeUntilDestroyed()).subscribe(({ collectionId, folderIds }) => {

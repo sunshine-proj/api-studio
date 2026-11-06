@@ -391,10 +391,43 @@ request, arrow keys / `Home` / `End` move between request tabs.
 
 ### Milestone 5: Import and Export
 
-- [ ] Native JSON export and import with schema validation.
-- [ ] Warnings before exporting sensitive environment data.
-- [ ] Postman collection import and export.
-- [ ] OpenAPI import.
+Import and Export are buttons in the header. Imports are added next to the
+existing data (nothing is overwritten) after a review step that shows the
+format, the counts and every warning. They are written in one transaction, so a
+failure leaves the data unchanged.
+
+- [x] Native JSON export and import with schema validation. Every request is
+  rebuilt from known fields only; invalid entries, duplicate or missing ids,
+  folders in a parent cycle and references across collections are skipped and
+  reported; unknown fields are dropped; ids are regenerated. A newer format
+  version is refused.
+- [x] Warnings before exporting sensitive data. The export dialog counts the
+  requests with credentials and the secret variables in the selection. By
+  default credentials are emptied and secret values are replaced by their
+  `{{name}}` placeholder (also in collections exported without their
+  environments). Including them is a separate tick box with a plain-text warning
+  and a second confirmation. Environment values not marked secret are exported
+  as they are.
+- [x] Postman collection import and export (v2.1; v2.0 collections import too).
+  Folders, requests, params, headers, raw, urlencoded, form-data and file
+  bodies, Basic, Bearer and API key auth (inherited from collection and folder
+  levels), and collection variables (imported as an environment). Scripts are
+  never imported or run, and unsupported parts (GraphQL bodies, OAuth, digest
+  and others) are reported. File fields keep only the file name. Export covers
+  one collection; Postman environments are a separate format and are not
+  supported.
+- [x] OpenAPI import (3.x and Swagger 2.0, JSON only). One collection, one folder
+  per tag, one request per operation, and an environment with `baseUrl` and the
+  variables the requests use (credential variables are marked secret). Bodies
+  are generated as examples from the schemas. Only local `#/` references are
+  followed; nothing is ever fetched. OAuth 2.0 schemes, cookie parameters and
+  TRACE operations are reported as not imported. **YAML is not supported**
+  (convert it to JSON first); adding a YAML parser would be a new dependency.
+
+Import safety: files over 10 MB are refused before they are read; nesting over
+64 levels and any `__proto__`, `constructor` or `prototype` key anywhere in the
+file are rejected; list lengths are capped; imported URLs that browsers cannot
+send (for example `ftp:`) are flagged.
 
 ### Milestone 6: Advanced Features
 

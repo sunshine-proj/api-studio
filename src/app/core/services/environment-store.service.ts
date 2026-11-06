@@ -48,6 +48,11 @@ export class EnvironmentStore {
 
   readonly ready: Promise<void> = this.load();
 
+  /** Reads everything from the database again, e.g. after an import wrote to it directly. */
+  reload(): Promise<void> {
+    return this.load();
+  }
+
   clearError(): void {
     this.errorState.set(null);
   }
@@ -58,7 +63,9 @@ export class EnvironmentStore {
   }
 
   async create(name: string): Promise<Environment | null> {
-    const now = Date.now();
+    // Environments are listed by creation time, so two created in the same millisecond must not tie.
+    const newest = this.environments().reduce((max, env) => Math.max(max, env.createdAt), 0);
+    const now = Math.max(Date.now(), newest + 1);
     const environment: Environment = {
       id: newId(),
       schemaVersion: SCHEMA_VERSION,

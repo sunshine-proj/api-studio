@@ -112,7 +112,9 @@ describe('CollectionStore', () => {
   it('reports a load failure and still becomes ready', async () => {
     TestBed.configureTestingModule({ providers: [{ provide: DATABASE_NAME, useValue: dbName }] });
     const db = TestBed.inject(DatabaseService);
-    vi.spyOn(db.collections, 'toArray').mockRejectedValue(new Error('blocked'));
+    vi.spyOn(db.collections, 'orderBy').mockImplementation(() => {
+      throw new Error('blocked');
+    });
     const store = TestBed.inject(CollectionStore);
     await store.ready;
     expect(store.loaded()).toBe(true);

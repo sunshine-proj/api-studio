@@ -7,6 +7,8 @@ import { EnvironmentSelectorComponent } from '../environments/environment-select
 import { RequestEditorComponent } from '../request-editor/request-editor.component';
 import { RequestTabsComponent } from '../request-editor/request-tabs.component';
 import { ResponseViewerComponent } from '../response-viewer/response-viewer.component';
+import { ExportDialogComponent } from '../import-export/export-dialog.component';
+import { ImportDialogComponent } from '../import-export/import-dialog.component';
 import { SettingsDialogComponent } from './settings-dialog.component';
 import { SidebarComponent } from './sidebar.component';
 import { StorageNoticeComponent } from './storage-notice.component';
@@ -34,6 +36,8 @@ import { ThemeSelectorComponent } from './theme-selector.component';
       <div class="controls">
         <app-environment-selector />
         <app-theme-selector />
+        <button mat-stroked-button type="button" (click)="openImport()">Import</button>
+        <button mat-stroked-button type="button" (click)="openExport()">Export</button>
         <button mat-stroked-button type="button" (click)="openSettings()">Settings</button>
       </div>
     </header>
@@ -60,6 +64,14 @@ import { ThemeSelectorComponent } from './theme-selector.component';
 export class WorkspaceComponent {
   private readonly session = inject(RequestSession);
   private readonly dialog = inject(MatDialog);
+
+  protected openImport(): void {
+    this.dialog.open(ImportDialogComponent, { autoFocus: 'first-tabbable' });
+  }
+
+  protected openExport(): void {
+    this.dialog.open(ExportDialogComponent, { autoFocus: 'first-tabbable' });
+  }
 
   protected openSettings(): void {
     this.dialog.open(SettingsDialogComponent, { autoFocus: 'first-tabbable' });

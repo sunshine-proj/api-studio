@@ -38,6 +38,11 @@ export class CollectionStore {
   /** Settles when the initial load is done, whether it worked or not. */
   readonly ready: Promise<void> = this.load();
 
+  /** Reads everything from the database again, e.g. after an import wrote to it directly. */
+  reload(): Promise<void> {
+    return this.load();
+  }
+
   clearError(): void {
     this.errorState.set(null);
   }
@@ -141,7 +146,7 @@ export class CollectionStore {
 
   private async load(): Promise<void> {
     try {
-      const [collections, folders] = await Promise.all([this.db.collections.toArray(), this.db.folders.toArray()]);
+      const [collections, folders] = await Promise.all([this.db.collections.orderBy('sortOrder').toArray(), this.db.folders.toArray()]);
       this.collectionsState.set(collections);
       this.foldersState.set(folders);
     } catch (error) {

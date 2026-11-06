@@ -147,6 +147,42 @@ Database: the schema moves to version 4 with a new history table, and there's a 
 
 
 
+Milestone 5 is implemented and all four README items are ticked. The TypeScript check, production build, lint and all 232 unit tests pass, and the tests passed five times in a row. I also ran 41 checks in Chromium with real files and no console errors, and nothing is committed.
+
+Import and Export are buttons in the header. Imports are added next to your existing data and never overwrite it. You see the format, counts and warnings before confirming, and the write is all-or-nothing.
+
+What was built
+
+Native JSON export/import: every request is rebuilt from known fields only. Bad entries, duplicate ids, folder cycles and cross-collection references are skipped and reported, unknown fields are dropped, and ids are regenerated.
+Sensitive-data warnings:
+The export dialog counts requests with credentials and secret variables before anything is written.
+By default credentials are emptied and secret values become {{name}}.
+Including them is a separate tick box with a plain-text warning, then a second confirmation.
+I downloaded real files to check, and the default export contained no token.
+Postman v2.1 import and export:
+Folders, requests, bodies, Basic/Bearer/API-key auth and collection variables come across, and a collection round-trips.
+Scripts are never imported or run, and unsupported parts such as GraphQL and OAuth are reported.
+OpenAPI import (3.x and Swagger 2.0):
+One collection, a folder per tag, and a request per operation.
+An environment with baseUrl and the credential variables, which are marked secret.
+Bodies are generated as examples from the schemas.
+Only local #/ references are followed, and nothing is fetched.
+Import safety: files over 10 MB are refused before they're read, and nesting over 64 levels is rejected. Any __proto__, constructor or prototype key is rejected, and list lengths are capped. A hostile file with __proto__ was refused in the browser test.
+
+Things to know
+
+YAML isn't supported. Most OpenAPI files in the wild are YAML, so this will be a common stumbling block. The error says so, but you'll need to convert to JSON first. A YAML parser would be a new dependency, so I left it for you to decide.
+Postman environments aren't supported, only collections. Postman export covers one collection at a time.
+Imported file fields keep only the file name, so you re-select the files before sending.
+Environment values not marked secret are exported as they are, and the dialog says so.
+Two bugs from earlier milestones turned up and are fixed:
+Environment ordering: two environments created in the same millisecond could come back in random order. That mattered here because imports create several at once.
+Collection ordering: the collection store loaded in random id order. The sidebar was unaffected because it sorts, but anything reading the store directly got an arbitrary order. I changed the load to use the sortOrder index and updated one existing test that mocked the old call.
+
+
+
+
+====================================
 
 
 
